@@ -1,0 +1,2 @@
+# GraphScope
+WeMakeDevs Hackathon
