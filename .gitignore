@@ -205,6 +205,13 @@ cython_debug/
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
 
+# GraphScope local configuration and generated output
+.env.*
+!.env.example
+reports/
+cloned_repos/
+appendonlydir/
+
 # Ruff stuff:
 .ruff_cache/
 
