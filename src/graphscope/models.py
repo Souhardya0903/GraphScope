@@ -91,12 +91,16 @@ class Snapshot(Contract):
 
 
 class ImpactReport(Contract):
-    """Future investigation output; extraction does not populate impact findings."""
+    """Deterministic graph findings and separately labelled recommendations."""
 
+    investigation_id: str
     snapshot_id: str
     target_id: str
-    affected_function_ids: list[str] = Field(default_factory=list)
-    affected_endpoint_ids: list[str] = Field(default_factory=list)
-    evidence_paths: list[list[EvidenceEdge]] = Field(default_factory=list)
-    recommended_checks: list[str] = Field(default_factory=list)
-    gaps: list[AnalysisGap] = Field(default_factory=list)
+    question: str
+    generated_at: str
+    graph_evidence: dict
+    recommended_checks: list[dict] = Field(default_factory=list)
+    analysis_gaps: dict
+    completeness: Literal["within_supported_scope", "partial"]
+    agent: dict
+    activity: list[dict] = Field(default_factory=list)

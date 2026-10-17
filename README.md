@@ -6,7 +6,8 @@ endpoints, with source evidence and explicit analysis gaps.
 
 The synthetic commerce fixture (Stage 1) and static ingestion pipeline (Stage 2)
 are implemented. Stage 3 adds cloud graph persistence and deterministic dependency
-queries. The LLM investigator, API, and UI remain pending.
+queries. Stage 4 adds bounded investigation tools, structured reports, Ollama Cloud, Gemini and OpenAI
+adapter, and a local tool-loop test mode. The API and UI remain pending.
 
 ## Layout
 
@@ -178,7 +179,7 @@ Remove-Item Env:GRAPHSCOPE_INTEGRATION
 
 Expected: **4 passed** with the configured FalkorDB service reachable. Without the
 opt-in flag these tests are skipped. Unit and fixture tests need no cloud connection.
-The full verified suite is **34 tests** with integration enabled. The existing
+The Stage 3 baseline passed **34 tests** with integration enabled. The existing
 HTTP test client also emits a dependency deprecation warning.
 
 Plain `python -m pytest -q` now allocates a fresh temporary directory under ignored
@@ -188,6 +189,120 @@ still takes precedence. Per-run temporary files remain under `reports/` for insp
 
 Resources and static test links are not ingested yet; their lookup methods return
 `supported: false` rather than claiming no impact. Snapshot revision/dirty metadata,
-automatic recovery of abandoned builds, and the bounded LLM agent remain future work.
+automatic recovery of abandoned builds remain future work.
+
+## Stage 4: bounded investigation
+
+Index once, then investigate that snapshot (PowerShell):
+
+```powershell
+$indexed = .\.venv\Scripts\python.exe -m graphscope.graph index examples/commerce | ConvertFrom-Json
+.\.venv\Scripts\python.exe -m graphscope.investigation $indexed.snapshot_id "What should I check if validate_stock changes?" --target inventory.validate_stock --provider test --output reports/investigation.json
+```
+
+`test` runs a deterministic planner through real graph tools. It makes no LLM/API
+requests and produces no model recommendations. Expected: both dependent POST routes,
+two direct callers, one indirect caller, source references, five unresolved call
+sites, and `agent.status: completed` with `agent.provider: test`. Completeness is
+`partial`, because unresolved calls and unsupported class bodies remain visible.
+Use `--provider none` (the default) to generate just the deterministic report.
+Neither mode depends on the demo HTTP server or its port 8080.
+
+For Ollama Cloud, set these entries in your ignored `.env`:
+
+```dotenv
+OLLAMA_API_KEY=your-key
+OLLAMA_MODEL=your-direct-api-model-id
+```
+
+Use the exact model name listed by `https://ollama.com/api/tags` and choose a model
+with tool calling available to your account. No local Ollama installation is needed.
+The adapter uses the fixed `https://ollama.com/api/chat` endpoint; keys are sent in
+the authorization header. Cloud usage is subject to your account's credits/limits.
+
+Index the example first and capture its output (the indexing CLI has no `--output` flag):
+
+```powershell
+New-Item -ItemType Directory -Force reports | Out-Null
+.\.venv\Scripts\python.exe -m graphscope.graph index examples/commerce --target inventory.validate_stock | Out-File -Encoding utf8 reports/commerce-index.json
+$indexed = Get-Content reports/commerce-index.json -Raw | ConvertFrom-Json
+.\.venv\Scripts\python.exe -m graphscope.investigation $indexed.snapshot_id "What should I review before changing validate_stock?" --target inventory.validate_stock --provider ollama --output reports/ollama-investigation.json
+```
+
+Check `agent.provider` is `ollama` and `agent.status` is `completed`. Status `failed`
+or `limited` means the model did not complete; deterministic findings are still
+retained for an explicit target. Questions and selected graph metadata are sent to
+Ollama Cloud; source snippets remain excluded unless `--share-source` is supplied.
+A live Ollama Cloud investigation completed against the commerce snapshot, returning model recommendations with source sharing disabled. Automated tests mock the provider API.
+
+For Gemini, save these entries in your ignored `.env` (keep your key out of Git and chat):
+
+```dotenv
+GEMINI_API_KEY=your-key
+GEMINI_MODEL=your-account-model-id
+```
+
+Choose a function-calling model available on your account's free tier, then run:
+
+```powershell
+.\.venv\Scripts\python.exe -m graphscope.investigation $indexed.snapshot_id "What should I review before changing validate_stock?" --target inventory.validate_stock --provider gemini --output reports/gemini-investigation.json
+```
+
+Check `agent.provider` is `gemini` and `agent.status` is `completed`. If access or
+quota fails, the report retains deterministic findings and records the failure.
+The adapter uses Google's generateContent API with function calling. Free-tier
+limits and data handling depend on your account and Google's current terms.
+
+For OpenAI, save these entries in your ignored `.env`:
+
+```dotenv
+OPENAI_API_KEY=your-key
+OPENAI_MODEL=your-account-model-id
+```
+
+Choose a model available to your API account that supports Responses function calls.
+Then run:
+
+```powershell
+.\.venv\Scripts\python.exe -m graphscope.investigation $indexed.snapshot_id "What should I review before changing validate_stock?" --target inventory.validate_stock --provider openai
+```
+
+The adapter uses [OpenAI Responses function calling](https://developers.openai.com/api/docs/guides/function-calling)
+with strict function schemas and `store: false`. Live provider access, quota,
+model compatibility, and billing depend on your API account. Adapter behavior is
+tested with mocked HTTP responses; no live OpenAI call was made during implementation.
+
+The model sees your question and selected graph/evidence slices. Source snippets are
+excluded from model tool results unless you explicitly pass `--share-source`.
+When enabled, excerpts may be sent to your selected provider and must match indexed file hashes.
+`store: false` disables response application-state storage; it is not a claim of
+zero data retention across all provider logging/policies. No full repository is sent.
+
+Reports separate `graph_evidence`, `recommended_checks` (labelled `deterministic`
+or `model`), `analysis_gaps`, and short tool activity events. Model output cannot
+replace graph findings or switch an explicitly selected target. If a model fails,
+verified deterministic findings remain available when `--target` was provided.
+Without a target, unresolved/ambiguous selection requires clarification. A database
+failure never produces a normal-looking fabricated report. Redis/resource analysis
+and static test linking still return explicitly unsupported results.
+
+Defaults: 6 model turns, 12 tool calls, 100 database reads, a 90-second investigation
+deadline checked between operations, a 30-second per-model-request timeout, 60,000
+context characters, 12,000 characters per tool result, and a 250,000-character report
+cap. Traversal uses depth 8 and at most 30 paths for this service. Network timeouts
+remain per blocking operation; this is not a process-level hard wall-clock kill.
+The agent has no shell, arbitrary Cypher, file-path, source-execution, or write tool.
+
+Run all tests, including real graph/tool/service integration but no paid model calls:
+
+```powershell
+$env:GRAPHSCOPE_INTEGRATION = "1"
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+Local implementation verification: **71 passed**, including additional Stage 4 tests retained locally and excluded from this commit. A fresh checkout contains the existing Stage 1–3 tests, so its test count will differ. One upstream HTTP test-client deprecation warning remains. Automated verification used mocked model APIs; Ollama Cloud was also verified separately with a live investigation.
+
+Next: Stage 5 exposes these operations through the backend; it should stream tool
+activity and results, not hidden model reasoning.
 
 Architecture choices and their current limits are recorded in [ARCHITECTURE.md](ARCHITECTURE.md).

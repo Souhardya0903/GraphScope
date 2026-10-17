@@ -8,6 +8,22 @@ environment succeeded; `pip check`, Ruff for application/tests/fixtures, and all
 34 tests passed, including cloud integration tests using a disposable graph.
 One upstream HTTP test-client deprecation warning remains.
 
+## Stage 4 extension
+
+The agent uses snapshot-bound validated tools and has no raw database query, write,
+shell, or arbitrary file-read tool. Graph findings are assembled deterministically;
+the model supplies only a verified target selection and labelled manual-review
+suggestions. Explicit targets get a deterministic report before the model runs,
+preserving findings if provider access fails. Model source access is opt-in.
+Ollama Cloud chat, Gemini generateContent, and OpenAI Responses are supported providers; a deterministic planner exercises the
+same tool loop locally without pretending to be an LLM. Model turns, tool calls,
+query counts, context/result sizes, and request deadlines are capped. Reasoning
+items are replayed only to the provider when needed and never shown as activity.
+Source/checkouts and database access are still trusted operator inputs; public
+multi-tenant authorization and upload isolation remain Stage 5/deployment work.
+Stage 4 local verification: 71 passing tests with cloud integration enabled (additional Stage 4 tests are retained locally and excluded from this commit); provider
+HTTP requests are mocked. Live Ollama Cloud operation completed against the commerce snapshot with source sharing disabled. Live Gemini/OpenAI access remains unverified.
+
 | Decision | Reason and verification | Limit |
 | --- | --- | --- |
 | Parse with Python AST without importing source | Avoids running analyzed application code. A fixture containing a top-level exception is parsed successfully without executing it. | Syntax cannot resolve all Python runtime bindings. Methods, callbacks, monkey patching, and unsupported constructs remain gaps/unresolved sites. |

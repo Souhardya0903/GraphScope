@@ -91,7 +91,12 @@ declaration is implemented. Stage 3 core storage, indexes, bounded forward/rever
 queries, endpoint lookup, unresolved-gap lookup, evidence/hash checks, and snapshot
 isolation are implemented and verified against FalkorDB Cloud. Full suite: 34 passing
 tests with integration enabled. Resource/test queries explicitly report unsupported
-until those entity types are ingested. Stage 4 and subsequent stages remain pending.
+until those entity types are ingested. Stage 4 tools, deterministic structured
+reports, bounded orchestration, local test planner, and Ollama Cloud/Gemini/OpenAI adapters
+are implemented. Provider transport is mocked in automated tests; live model access
+requires OLLAMA_API_KEY/OLLAMA_MODEL, GEMINI_API_KEY/GEMINI_MODEL, or OPENAI_API_KEY/OPENAI_MODEL. Stage 5 and subsequent stages remain pending.
+Stage 4 local verification: 71 tests passed (Stage 4 test files retained locally, excluded from this commit) with cloud integration enabled, and the CLI
+local tool-loop mode returned the expected two commerce endpoints. Live Ollama Cloud access completed with source sharing disabled. Live Gemini/OpenAI access remains unverified.
 
 ### Stage 0: Environment & FalkorDB Verification
 **Goal:** Ensure local Python virtual environment, dependencies, Docker container, and FalkorDB connectivity are verified.
@@ -196,7 +201,7 @@ until those entity types are ingested. Stage 4 and subsequent stages remain pend
     2. *Agent Recommendations* (boundary tests to run, review priorities).
     3. *Analysis Gaps* (unresolved dynamic calls and caveats).
 - **Verification Check:**
-  - Create `tests/integration/test_agent_investigation.py`.
+  - Local-only verification: `tests/integration/test_agent_investigation.py` was created and run but excluded from the Stage 4 implementation commit.
   ```powershell
   .\.venv\Scripts\pytest tests/integration/test_agent_investigation.py
   ```
