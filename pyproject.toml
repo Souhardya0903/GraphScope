@@ -24,6 +24,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "examples/commerce/tests"]
+addopts = "-p no:cacheprovider"
 
 [tool.ruff]
 target-version = "py311"

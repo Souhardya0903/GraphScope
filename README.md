@@ -181,6 +181,11 @@ opt-in flag these tests are skipped. Unit and fixture tests need no cloud connec
 The full verified suite is **34 tests** with integration enabled. The existing
 HTTP test client also emits a dependency deprecation warning.
 
+Plain `python -m pytest -q` now allocates a fresh temporary directory under ignored
+`reports/pytest-*` instead of the shared Windows temp folder. Pytest's optional cache
+is disabled to avoid stale cache permissions. An explicitly supplied `--basetemp`
+still takes precedence. Per-run temporary files remain under `reports/` for inspection.
+
 Resources and static test links are not ingested yet; their lookup methods return
 `supported: false` rather than claiming no impact. Snapshot revision/dirty metadata,
 automatic recovery of abandoned builds, and the bounded LLM agent remain future work.
