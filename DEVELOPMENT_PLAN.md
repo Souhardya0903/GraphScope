@@ -82,6 +82,17 @@ This document outlines the architecture, data models, agent loop, and an **incre
 
 ## Incremental Stages & Verification Roadmap
 
+Current progress (18 October 2026): Stage 0 cloud connectivity verified. Stage 1
+commerce fixture implemented and verified with 12 passing tests. Stage 2 contracts,
+discovery, two-pass call resolution, router extraction, JSON CLI, and 11 unit tests
+are implemented. Its Redis adapter
+is an explicitly documented in-memory stand-in; no live Redis or resource graph
+declaration is implemented. Stage 3 core storage, indexes, bounded forward/reverse
+queries, endpoint lookup, unresolved-gap lookup, evidence/hash checks, and snapshot
+isolation are implemented and verified against FalkorDB Cloud. Full suite: 34 passing
+tests with integration enabled. Resource/test queries explicitly report unsupported
+until those entity types are ingested. Stage 4 and subsequent stages remain pending.
+
 ### Stage 0: Environment & FalkorDB Verification
 **Goal:** Ensure local Python virtual environment, dependencies, Docker container, and FalkorDB connectivity are verified.
 

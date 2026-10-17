@@ -23,7 +23,7 @@ dev = ["pytest", "ruff", "httpx"]
 where = ["src"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "examples/commerce/tests"]
 
 [tool.ruff]
 target-version = "py311"
