@@ -7,8 +7,10 @@ try {
         & $Python -m venv .venv
         if ($LASTEXITCODE -ne 0) { throw "Virtual environment creation failed" }
     }
-    & ./.venv/Scripts/python.exe -m pip install -e ".[dev]"
+    & ./.venv/Scripts/python.exe -m pip install -r requirements.lock.txt
     if ($LASTEXITCODE -ne 0) { throw "Dependency installation failed" }
+    & ./.venv/Scripts/python.exe -m pip install -e . --no-deps
+    if ($LASTEXITCODE -ne 0) { throw "Package installation failed" }
     npm ci --prefix tools/javascript --ignore-scripts
     if ($LASTEXITCODE -ne 0) { throw "Parser installation failed" }
     npm ci --prefix frontend --ignore-scripts

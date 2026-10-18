@@ -187,8 +187,10 @@ public multi-user hosting, tenant isolation, and authentication are not implemen
 
 ## Verification
 
-Dependencies are declared in `pyproject.toml`; setup installs runtime and development
-dependencies from that file. Python dependency versions are not locked. Run tests
+Dependencies are declared in `pyproject.toml`. Setup installs known runtime and
+development versions from `requirements.lock.txt`, then installs GraphScope without
+re-resolving dependencies. This version snapshot is not an artifact-hashed,
+cross-platform lockfile. Run tests
 from the checkout root; pytest uses the ignored `reports/pytest` temporary directory.
 
 After setup:

@@ -32,7 +32,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
-      - name: Install project dependencies and build dashboard
+      - name: Install locked environment and build dashboard
         run: sh scripts/setup.sh
       - name: Lint and isolated database integration tests
         run: |
