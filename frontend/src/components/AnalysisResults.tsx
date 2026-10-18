@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import GraphCanvas from './GraphCanvas';
+import CoveragePanel from './CoveragePanel';
 import { GraphEvidencePayload } from '../types/api';
 
 type Data = Record<string, unknown>;
@@ -18,7 +19,7 @@ export default function AnalysisResults({ result, onCandidate }: { result: Data;
   const endpoints = records(report.potentially_affected_endpoints ?? report.endpoints);
   const calls = records(report.calls);
   const evidence = [...paths.flatMap(p => records(p.evidence)), ...calls].filter(e => !selected || e.caller_id === selected || e.callee_id === selected);
-  const gaps = [...records(report.analysis_gaps ?? report.gaps), ...records(result.change_gaps), ...records(wrapper.service_gaps), ...records(report.unresolved_calls)];
+  const extraGaps = [...records(result.change_gaps), ...records(wrapper.service_gaps)];
   const limits = object(report.limits);
   const idToName = new Map(functions.map(f => [String(f.id), String(f.qualified_name)]));
   const allGraphPaths = paths.length
@@ -26,9 +27,18 @@ export default function AnalysisResults({ result, onCandidate }: { result: Data;
     : calls.map(c => [idToName.get(String(c.caller_id)) ?? String(c.caller_id), idToName.get(String(c.callee_id)) ?? String(c.callee_id)]);
   const graph: GraphEvidencePayload = { paths: allGraphPaths.slice(0, 200), potentially_affected_endpoints: endpoints.map(e => `${e.method} ${e.path}`) };
 
+  if (result.status === 'confirmation_required' || result.status === 'clarification_required') return <div className="proposal-review" aria-label="Proposal review">
+    <span className="eyebrow">{result.provider ? `${String(result.provider).toUpperCase()} SUGGESTION` : 'TARGET REVIEW'}</span>
+    <h3>{result.status === 'clarification_required' ? 'More detail needed' : 'Review the suggested targets'}</h3>
+    <p>{result.status === 'clarification_required' ? String(result.message) : 'Select a candidate, review the target field, then confirm it before calculating impact. Suggestions do not establish complete change coverage.'}</p>
+    {records(result.candidates).map(f => <button key={String(f.id)} className="apple-btn btn-secondary candidate-button" onClick={() => onCandidate(String(f.qualified_name))}>Use {String(f.qualified_name)}</button>)}
+    {result.status === 'confirmation_required' && !records(result.candidates).length && <p>No lexical matches found. Name a function in the description, enter an exact qualified target, or try a model provider.</p>}
+    {Array.isArray(result.suggestions) && result.suggestions.length > 0 && <div><h4>Suggested manual checks</h4>{result.suggestions.map((item, index) => <p key={index}>{String(item)}</p>)}</div>}
+    <p>No blast radius has been calculated yet.</p>
+  </div>;
+
   return <div aria-label="Analysis findings">
     {comparison && <label>Snapshot side<select aria-label="Snapshot side" value={side} onChange={e => { setSide(e.target.value as 'before' | 'after'); setSelected(null); }}><option value="before">Before changes</option><option value="after">After changes</option></select></label>}
-    {result.status === 'confirmation_required' && <div role="status"><p>Review and select a target, then confirm it before calculating impact.</p>{records(result.candidates).map(f => <button key={String(f.id)} className="apple-btn btn-secondary" onClick={() => onCandidate(String(f.qualified_name))}>Use {String(f.qualified_name)}</button>)}</div>}
     <div className="metric-grid" aria-label="Analysis summary">
       <div className="metric-card"><span>Functions</span><strong>{functions.length}</strong><small>Mapped / potentially affected</small></div>
       <div className="metric-card"><span>Endpoints</span><strong>{endpoints.length}</strong><small>Potentially affected routes</small></div>
@@ -43,6 +53,6 @@ export default function AnalysisResults({ result, onCandidate }: { result: Data;
     <div className="analysis-graph"><GraphCanvas evidence={graph} targetSymbol={targets.length ? String(targets[0].qualified_name) : null} selectedNodeId={selected ? idToName.get(selected) ?? selected : null} onSelectNode={name => setSelected(String(functions.find(f => f.qualified_name === name)?.id ?? name))} /></div>
     <div className="findings-grid"><details><summary>Affected functions and endpoints</summary><ul>{functions.map(f => <li key={String(f.id)}><button className="apple-btn btn-secondary" onClick={() => setSelected(String(f.id))}>{String(f.qualified_name)}</button> — {String(f.file_path)}:{String(f.start_line)}</li>)}</ul><ul>{endpoints.map(e => <li key={String(e.id)}>{String(e.method)} {String(e.path)}</li>)}</ul></details>
     <details open={selected !== null}><summary>Dependency evidence {selected ? `for ${idToName.get(selected) ?? selected}` : ''}</summary>{evidence.length ? evidence.map((e, i) => <p key={i}>{String(e.file_path)}:{String(e.line)} — {String(e.rule)} ({String(e.confidence ?? 'explicit')})</p>) : <p>Select a linked function to see path evidence. Source hashes are included in the exported report.</p>}</details>
-    </div><details className="coverage-panel"><summary>Coverage gaps ({gaps.length})</summary><ul>{gaps.map((g, i) => <li key={i}>{String(g.path ?? g.file_path ?? g.service ?? '')} {String(g.reason ?? '')}</li>)}</ul></details>
+    </div><CoveragePanel key={side} report={report} extraGaps={extraGaps} />
   </div>;
 }

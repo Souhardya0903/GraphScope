@@ -8,9 +8,14 @@ from pydantic import Field
 
 from graphscope.analysis.changes import compare
 from graphscope.analysis.impact import impact, propose
+from graphscope.analysis.proposals import suggest
 from graphscope.analysis.repository import analyze
 from graphscope.analysis.workspace import map_workspace, workspace_changes, workspace_impact
 from graphscope.api.safety import allowed_path
+from graphscope.investigation.agent import ModelFailure
+from graphscope.investigation.gemini import GeminiModel
+from graphscope.investigation.ollama import OllamaModel
+from graphscope.investigation.providers import OpenAIModel
 from graphscope.models import Contract
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
@@ -23,6 +28,8 @@ class AnalysisRequest(Contract):
     targets: list[str] = Field(default_factory=list, max_length=100)
     description: str = Field(default="", max_length=4000)
     confirm: bool = False
+    provider: Literal["none", "openai", "gemini", "ollama"] = "none"
+    share_catalog: bool = False
     resource: str | None = Field(default=None, max_length=2048)
     service: str | None = Field(default=None, max_length=100)
     changed_service: str | None = Field(default=None, max_length=100)
@@ -30,6 +37,15 @@ class AnalysisRequest(Contract):
 
 def execute(operation, request):
     try:
+        if request.provider != "none":
+            if operation != "propose" or request.confirm or request.targets:
+                raise ValueError(
+                    "Model suggestions require an unconfirmed proposal without targets"
+                )
+            if not request.share_catalog:
+                raise ValueError(
+                    "Allow sharing the description and symbol catalog before using a model"
+                )
         if request.resource and request.targets:
             raise ValueError("Choose targets or a resource, not both")
         if request.changed_service and (request.service or request.targets):
@@ -61,6 +77,11 @@ def execute(operation, request):
         if operation == "map":
             return {"mode": "repository-map", **snapshot.model_dump()}
         if operation == "propose":
+            if request.provider != "none":
+                model = {"openai": OpenAIModel, "gemini": GeminiModel, "ollama": OllamaModel}[
+                    request.provider
+                ]()
+                return suggest(snapshot, request.description, model)
             return propose(snapshot, request.description, request.targets or None, request.confirm)
         targets = []
         if request.resource:
@@ -79,6 +100,11 @@ def execute(operation, request):
         if not targets:
             raise ValueError("Select targets or a matching literal resource")
         return {"mode": "target-impact", "report": impact(snapshot, targets)}
+    except ModelFailure as error:
+        raise HTTPException(
+            502,
+            detail=f"Model suggestion failed: {error}. Use offline suggestions or explicit targets.",
+        ) from error
     except (ValueError, FileNotFoundError, NotADirectoryError) as error:
         raise HTTPException(422, detail=str(error)) from error
     except subprocess.TimeoutExpired as error:

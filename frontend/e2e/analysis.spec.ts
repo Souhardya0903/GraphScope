@@ -92,3 +92,59 @@ test('Click graph labels stay within cards and the workspace responds to mobile'
   await analysis.locator('.analysis-graph').scrollIntoViewIfNeeded();
   await page.screenshot({ path: '../reports/ui-mobile.png', fullPage: true });
 });
+
+
+test('model suggestion consent, candidate review, and real confirmed impact', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Describe a change' }).click();
+  const analysis = page.getByRole('region', { name: 'Repository change analysis' });
+  await analysis.getByLabel('Repository path').fill(resolve('..', 'examples', 'commerce'));
+  await analysis.getByLabel('Suggestion provider').selectOption('gemini');
+  await analysis.getByLabel('Describe the proposed change').fill('Reject orders with insufficient inventory');
+  await expect(analysis.getByRole('button', { name: 'Analyze repository' })).toBeDisabled();
+  await analysis.getByLabel('Allow sending').check();
+  let modelRequests = 0;
+  await page.route('**/api/analysis/propose', async route => {
+    const request = route.request().postDataJSON();
+    if (request.provider === 'gemini') {
+      modelRequests++;
+      expect(request.share_catalog).toBe(true);
+      expect(request.confirm).toBe(false);
+      await route.fulfill({ json: { status: 'confirmation_required', provider: 'gemini', candidates: [{ id: 'suggested', qualified_name: 'inventory.validate_stock' }], suggestions: ['Review quantity boundaries'] } });
+    } else {
+      expect(request.confirm).toBe(true);
+      expect(request.targets).toEqual(['inventory.validate_stock']);
+      await route.continue();
+    }
+  });
+  await analysis.getByRole('button', { name: 'Analyze repository' }).click();
+  await expect(analysis.getByLabel('Proposal review')).toContainText('No blast radius has been calculated yet');
+  await expect(analysis.getByLabel('Analysis summary')).toHaveCount(0);
+  await analysis.getByRole('button', { name: 'Use inventory.validate_stock' }).click();
+  await analysis.getByLabel('I confirm the explicit targets').check();
+  await analysis.getByRole('button', { name: 'Analyze repository' }).click();
+  await expect(analysis.getByLabel('Analysis summary')).toBeVisible();
+  await analysis.getByText('Affected functions and endpoints', { exact: true }).click();
+  await expect(analysis.getByText('POST /orders', { exact: true }).last()).toBeVisible();
+  expect(modelRequests).toBe(1);
+});
+
+test('provider failure offers a working offline fallback', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Describe a change' }).click();
+  const analysis = page.getByRole('region', { name: 'Repository change analysis' });
+  await analysis.getByLabel('Repository path').fill(resolve('..', 'examples', 'commerce'));
+  await analysis.getByLabel('Suggestion provider').selectOption('ollama');
+  await analysis.getByLabel('Describe the proposed change').fill('Change validate_stock');
+  await analysis.getByLabel('Allow sending').check();
+  await page.route('**/api/analysis/propose', async route => {
+    if (route.request().postDataJSON().provider === 'ollama') await route.fulfill({ status: 502, json: { detail: 'Model suggestion failed: Provider unavailable. Use offline suggestions or explicit targets.' } });
+    else await route.continue();
+  });
+  await analysis.getByRole('button', { name: 'Analyze repository' }).click();
+  await expect(analysis.getByRole('alert')).toContainText('Provider unavailable');
+  await analysis.getByRole('button', { name: 'Use offline suggestions' }).click();
+  await expect(analysis.getByLabel('Suggestion provider')).toHaveValue('none');
+  await analysis.getByRole('button', { name: 'Analyze repository' }).click();
+  await expect(analysis.getByRole('button', { name: 'Use inventory.validate_stock' })).toBeVisible();
+});

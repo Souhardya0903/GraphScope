@@ -10,6 +10,8 @@ export default function RepositoryAnalysis() {
   const [mode, setMode] = useState<Mode>('changes');
   const [root, setRoot] = useState('');
   const [targets, setTargets] = useState('');
+  const [provider, setProvider] = useState<'none' | 'gemini' | 'openai' | 'ollama'>('none');
+  const [shareCatalog, setShareCatalog] = useState(false);
   const [description, setDescription] = useState('');
   const [base, setBase] = useState('HEAD');
   const [head, setHead] = useState('worktree');
@@ -30,7 +32,7 @@ export default function RepositoryAnalysis() {
     try {
       const response = await fetch(`/api/analysis/${mode}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal,
-        body: JSON.stringify({ root, targets: ['impact', 'propose', 'workspace'].includes(mode) ? targets.split(',').map(t => t.trim()).filter(Boolean) : [], description: mode === 'propose' ? description : '', base, head, service: mode === 'workspace' ? service || null : null, changed_service: mode === 'workspace' ? changedService || null : null, resource: mode === 'impact' ? resource || null : null, confirm: mode === 'propose' && confirm }),
+        body: JSON.stringify({ root, targets: ['impact', 'propose', 'workspace'].includes(mode) ? targets.split(',').map(t => t.trim()).filter(Boolean) : [], description: mode === 'propose' ? description : '', base, head, service: mode === 'workspace' ? service || null : null, changed_service: mode === 'workspace' ? changedService || null : null, resource: mode === 'impact' ? resource || null : null, confirm: mode === 'propose' && confirm, provider: mode === 'propose' && !confirm && !targets.trim() ? provider : 'none', share_catalog: mode === 'propose' && shareCatalog }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Check analysis inputs');
@@ -40,7 +42,7 @@ export default function RepositoryAnalysis() {
   }
 
   return <section className="repository-analysis" aria-label="Repository change analysis">
-    <header className="analysis-heading"><div><span className="eyebrow">REPOSITORY INTELLIGENCE</span><h2>Understand the impact.<br /><span>Before you change the code.</span></h2><p>Explore dependencies and trace potential changes through your codebase.</p></div><span className="local-badge">● Local source analysis</span></header>
+    <header className="analysis-heading"><div><span className="eyebrow">REPOSITORY INTELLIGENCE</span><h2>Understand the impact.<br /><span>Before you change the code.</span></h2><p>Explore dependencies and trace potential changes through your codebase.</p></div><button className="apple-btn btn-secondary" onClick={() => { setMode('propose'); setConfirm(false); setResult(null); setError(''); }}>Describe a change →</button></header>
     <div className="analysis-workspace"><aside className="setup-panel"><div className="panel-heading"><span className="step-number">01</span><div><h3>Configure analysis</h3><p>Choose a repository and scope.</p></div></div>
     <form onSubmit={submit} onChange={() => setResult(null)}><fieldset disabled={busy}>
       <label>Analysis mode<select value={mode} onChange={e => { setMode(e.target.value as Mode); setResult(null); setConfirm(false); }}>
@@ -53,13 +55,16 @@ export default function RepositoryAnalysis() {
       {mode === 'workspace' && <label>Service ID (for target impact)<input value={service} onChange={e => setService(e.target.value)} /></label>}
       {mode === 'workspace' && <label>Changed service ID (for Git impact)<input value={changedService} onChange={e => setChangedService(e.target.value)} /></label>}
       {mode === 'impact' && <label>Or resource identity<input value={resource} onChange={e => setResource(e.target.value)} placeholder="redis:inventory" /></label>}
-      {mode === 'propose' && <><label>Describe the proposed change<textarea required value={description} onChange={e => { setDescription(e.target.value); setConfirm(false); }} /></label>
+      {mode === 'propose' && <><div className="proposal-steps"><span>1 Describe</span><span>2 Review target</span><span>3 Confirm impact</span></div>
+        <label>Suggestion provider<select value={provider} onChange={e => { setProvider(e.target.value as typeof provider); setShareCatalog(false); setConfirm(false); setTargets(''); }}><option value="none">Offline (no model)</option><option value="gemini">Gemini</option><option value="ollama">Ollama Cloud</option><option value="openai">OpenAI</option></select></label>
+        {provider !== 'none' && <><p className="provider-note">Uses server-side {provider.toUpperCase()}_API_KEY and {provider.toUpperCase()}_MODEL settings. Suggestions are advisory; impact is calculated from source after confirmation.</p><label className="consent-label"><input type="checkbox" checked={shareCatalog} onChange={e => setShareCatalog(e.target.checked)} />Allow sending my description, function names, IDs and relative file paths to this provider. Source contents and credentials are not included.</label></>}
+        <label>Describe the proposed change<textarea required value={description} onChange={e => { setDescription(e.target.value); setConfirm(false); }} /></label>
         <label><input type="checkbox" checked={confirm} onChange={e => setConfirm(e.target.checked)} />I confirm the explicit targets above</label></>}
-      <button className="apple-btn btn-primary" disabled={busy || (mode === 'propose' && confirm && !targets.trim())} type="submit">{busy ? 'Analyzing…' : 'Analyze repository'}</button>
-    </fieldset></form><p className="setup-note">Source is analyzed locally without executing it. No model or stored snapshot required.</p></aside>
+      <button className="apple-btn btn-primary" disabled={busy || (mode === 'propose' && ((confirm && !targets.trim()) || (!confirm && !targets.trim() && provider !== 'none' && !shareCatalog)))} type="submit">{busy ? 'Analyzing…' : 'Analyze repository'}</button>
+    </fieldset></form><p className="setup-note">Source is analyzed locally without executing it. Models are optional; confirmed impact uses static dependencies.</p></aside>
     <main className="results-panel" aria-label="Analysis workspace">
     {busy && <div role="status">Analyzing repository… <button className="apple-btn btn-secondary" onClick={cancel}>Cancel request</button></div>}
-    {error && <p role="alert">{error}</p>}
+    {error && <div><p role="alert">{error}</p>{mode === 'propose' && provider !== 'none' && <button className="apple-btn btn-secondary" onClick={() => { setProvider('none'); setShareCatalog(false); setError(''); }}>Use offline suggestions</button>}</div>}
     {result && <div><div className="results-heading"><div><span className="eyebrow">ANALYSIS RESULTS</span><h3>Dependency & impact report</h3><p className="result-path">Results for {root}</p></div><button className="apple-btn btn-secondary" onClick={() => downloadFile(JSON.stringify(result, null, 2), 'repository-analysis.json', 'application/json')}>Export analysis JSON</button></div>
       <AnalysisResults key={`${mode}-${root}`} result={result} onCandidate={name => { setTargets(name); setConfirm(false); }} />
       <details><summary>Full analysis JSON</summary><pre>{JSON.stringify(result, null, 2)}</pre></details></div>}

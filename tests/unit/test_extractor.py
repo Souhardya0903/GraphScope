@@ -73,3 +73,34 @@ def test_nested_bodies_not_attributed_to_outer(tmp_path):
     result = ingest(tmp_path)
     assert result.calls == []
     assert len(result.gaps) == 2
+
+
+def test_explicit_reexports_and_from_package_module_calls(tmp_path):
+    package = tmp_path / "pkg"
+    package.mkdir()
+    (package / "__init__.py").write_text("from .bridge import exposed\n")
+    (package / "bridge.py").write_text("from .util import work as exposed\n")
+    (package / "util.py").write_text("def work(): return 1\n")
+    (tmp_path / "app.py").write_text("from pkg import exposed, util\nimport pkg\ndef run():\n    exposed()\n    pkg.exposed()\n    util.work()\n")
+    result = ingest(tmp_path)
+    assert len(result.calls) == 3
+    assert edges(result) == {("app.run", "pkg.util.work")}
+
+
+def test_reexports_do_not_bypass_rebinding_decorators_or_cycles(tmp_path):
+    (tmp_path / "a.py").write_text("from b import work\n")
+    (tmp_path / "b.py").write_text("from a import work\n")
+    (tmp_path / "decorated.py").write_text("@unknown\ndef work(): pass\n")
+    (tmp_path / "exports.py").write_text("from decorated import work\n")
+    (tmp_path / "rebound.py").write_text("from original import work\nwork = unknown\n")
+    (tmp_path / "original.py").write_text("def work(): pass\n")
+    (tmp_path / "app.py").write_text("import a, exports, rebound\ndef run():\n    a.work()\n    exports.work()\n    rebound.work()\n")
+    assert ingest(tmp_path).calls == []
+
+
+def test_builtins_are_explained_without_inventing_edges(tmp_path):
+    (tmp_path / "app.py").write_text("def run(): return len([])\ndef shadow(len): return len([])\n")
+    result = ingest(tmp_path)
+    assert result.calls == []
+    assert "Python builtin" in result.callsites[0].reason
+    assert "shadows" in result.callsites[1].reason

@@ -71,6 +71,14 @@ created beneath ignored `reports/analysis-tmp` and cleaned up after parsing.
 
 ## Investigate a proposed change before editing
 
+The dashboard exposes this flow under **Proposed change** or the **Describe a
+change** shortcut. Choose Offline, Gemini, Ollama Cloud, or OpenAI. Model requests
+require explicit consent to share the description and bounded symbol catalog;
+credentials remain in server-side `.env` settings. Select the returned candidate
+and confirm its target before calculating static impact. Confirmation does not
+make another model request. Provider errors offer an offline fallback. A model
+may also request clarification; no impact report is shown until targets are confirmed.
+
 ```powershell
 # Offline lexical candidates; always asks for confirmation
 .\.venv\Scripts\python.exe -m graphscope.analysis propose examples/commerce "Change validate_stock to reject zero quantity"
@@ -156,6 +164,18 @@ matching is performed.
 
 All reports remain `partial`: these are meaningful static capabilities across phases
 1–7, not universal repository/service mapping. An empty path is not proof of safety.
+
+Python resolution follows explicit, uniquely bound module-level import re-exports
+and `from package import submodule` calls. Rebound names, unresolved cycles and
+arbitrary decorators remain unresolved. Builtin calls receive a separate reason
+without being converted into repository dependency edges.
+
+The dashboard separates repository-wide limitation records from unresolved calls.
+For impact reports, the default coverage view shows unresolved calls inside the
+found affected functions and extraction limitations in their files. Switch to
+Whole repository to inspect all records, grouped by reason with source locations.
+This filter does not prove other code is unrelated: unresolved incoming calls may
+hide additional affected functions. Exports retain the full repository records.
 
 Limits: 10,000 eligible files / 50 MB, at most 500 change targets, traversal depth
 1–30 (default 12), paths 1–2,000 (default 500), and 20,000 traversal expansions.

@@ -1,6 +1,7 @@
 """Resolve supported calls in a second pass and retain unresolved sites as gaps."""
 
 import ast
+import builtins
 
 from graphscope.models import AnalysisGap, EvidenceEdge
 
@@ -86,6 +87,44 @@ def resolve(modules, snapshot):
             ):
                 symbols[(module.name, f"{cls}.{function.name}")] = function.id
     owners = {f.id: module for module in modules.values() for f in module.functions.values()}
+
+    def lookup(key):
+        if key is None:
+            return None
+        if key in symbols:
+            return symbols[key]
+        # `from package import submodule; submodule.work()` binds a module,
+        # not a function called `submodule.work` in the package initializer.
+        origin, member = key
+        parts = member.split(".")
+        matches = {
+            symbols[(candidate, rest)]
+            for index in range(1, len(parts))
+            if (candidate := ".".join([origin, *parts[:index]])) in modules
+            and (rest := ".".join(parts[index:]))
+            and (candidate, rest) in symbols
+        }
+        return next(iter(matches)) if len(matches) == 1 else None
+
+    # Follow only explicit, unambiguous module-level import re-exports.
+    # Cycles without a concrete definition stay unresolved.
+    for _ in range(len(modules) + 1):
+        added = False
+        for module in modules.values():
+            for alias, imported in module.imports.items():
+                key = (module.name, alias)
+                if (
+                    key not in symbols
+                    and imported[1] is not None
+                    and module.bindings[alias] == 1
+                    and alias not in module.blocked
+                    and not module.wildcard
+                    and (target := lookup(imported)) is not None
+                ):
+                    symbols[key] = target
+                    added = True
+        if not added:
+            break
     # Resolve explicit Class.method lookups through single, statically bound bases.
     # self/super/instance calls remain unresolved because runtime overrides may differ.
     for _ in range(len(modules) + sum(len(m.class_bases) for m in modules.values())):
@@ -119,9 +158,18 @@ def resolve(modules, snapshot):
         if first in module.function_blocks[call.owner_id]:
             call.reason = "Local binding or parameter shadows the target"
             continue
-        target = symbols.get(binding(module, call.target_text))
+        target = lookup(binding(module, call.target_text))
         if target is None:
-            call.reason = "Dynamic, external, ambiguous, decorated, or unsupported target"
+            if (
+                call.target_text.isidentifier()
+                and first not in module.bindings
+                and hasattr(builtins, first)
+                and not module.wildcard
+                and first not in module.blocked
+            ):
+                call.reason = "Python builtin call; no repository function target"
+            else:
+                call.reason = "Dynamic, external, ambiguous, decorated, or unsupported target"
             continue
         call.target_id, call.resolution_status, call.reason = (
             target,
