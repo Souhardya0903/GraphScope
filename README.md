@@ -94,8 +94,8 @@ The UI asks permission to share the description and symbol catalog. Review the c
 select it, and explicitly confirm before calculating static impact. Confirmation does
 not make another model request. Provider failures offer an offline fallback.
 
-Create an ignored `.env` file at the checkout root if you need model or database
-configuration. Preserve existing settings. Set the selected provider's key and a tool-capable model ID
+Create an ignored `.env` file using `.env.example` as a template, without overwriting
+existing configuration. Set the selected provider's key and a tool-capable model ID
 available to your account:
 
 ```dotenv
@@ -142,19 +142,7 @@ For a local Docker installation:
 docker compose up -d --wait
 ```
 
-For a local instance, add these settings to `.env`. For FalkorDB Cloud, use its
-host, port, credentials, and TLS setting instead.
-
-```dotenv
-FALKORDB_HOST=localhost
-FALKORDB_PORT=6379
-FALKORDB_SSL=false
-FALKORDB_GRAPH=graphscope
-# FALKORDB_USERNAME=
-# FALKORDB_PASSWORD=
-```
-
-Then verify connectivity:
+Configure `.env` for your local instance or FalkorDB Cloud, then verify connectivity:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts/check_falkordb.py
@@ -186,12 +174,6 @@ repository source. This beta binds to loopback and assumes a trusted local opera
 public multi-user hosting, tenant isolation, and authentication are not implemented.
 
 ## Verification
-
-Dependencies are declared in `pyproject.toml`. Setup installs known runtime and
-development versions from `requirements.lock.txt`, then installs GraphScope without
-re-resolving dependencies. This version snapshot is not an artifact-hashed,
-cross-platform lockfile. Run tests
-from the checkout root; pytest uses the ignored `reports/pytest` temporary directory.
 
 After setup:
 
