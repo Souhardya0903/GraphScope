@@ -1,0 +1,7 @@
+.repository-analysis { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-subtle); max-height: 45vh; overflow: auto; flex-shrink: 0; }
+.repository-analysis h2 { font-size: 1rem; }
+.repository-analysis p { color: var(--text-secondary); font-size: .8rem; margin: .35rem 0; }
+.repository-analysis form { display: flex; flex-wrap: wrap; gap: .75rem; align-items: end; }
+.repository-analysis label { display: flex; flex-direction: column; font-size: .8rem; gap: .25rem; }
+.repository-analysis input, .repository-analysis select, .repository-analysis textarea { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-highlight); border-radius: .35rem; padding: .4rem; }
+.repository-analysis pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .75rem; max-height: 18rem; overflow: auto; }

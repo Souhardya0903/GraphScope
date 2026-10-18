@@ -19,7 +19,7 @@ from redis.exceptions import RedisError
 from graphscope.graph.client import select_graph
 from graphscope.graph.queries import GraphQueries
 from graphscope.graph.repository import GraphRepository
-from graphscope.ingestion.pipeline import ingest
+from graphscope.analysis.repository import analyze as ingest
 from graphscope.investigation.agent import ModelFailure, run_investigation
 from graphscope.investigation.gemini import GeminiModel
 from graphscope.investigation.ollama import OllamaModel
@@ -32,6 +32,9 @@ app = FastAPI(
     description="Codebase investigation and change impact analysis backed by FalkorDB.",
     version="0.1.0",
 )
+from graphscope.api.analysis import router as analysis_router
+
+app.include_router(analysis_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -138,7 +141,7 @@ async def index_repository(req: IndexRequest):
         raise HTTPException(status_code=400, detail=f"Path not found: {req.root}")
     try:
         snapshot = ingest(root)
-    except (OSError, SyntaxError) as exc:
+    except (OSError, SyntaxError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     try:
         graph = select_graph(req.graph)

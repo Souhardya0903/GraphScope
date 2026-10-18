@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import CommandBar from './components/CommandBar';
+import RepositoryAnalysis from './components/RepositoryAnalysis';
 import IngestModal from './components/IngestModal';
 import QueryCapsule from './components/QueryCapsule';
 import TelemetryHUD from './components/TelemetryHUD';
@@ -106,6 +107,8 @@ export default function App() {
         onExportJSON={handleExportJSON}
         hasReport={report !== null}
       />
+
+      <RepositoryAnalysis />
 
       <QueryCapsule
         snapshotId={activeSnapshotId}
