@@ -327,3 +327,7 @@ Historical Stage 4 checkpoint: **71 passed**, including additional Stage 4 tests
 The local beta now exposes analysis through the API and dashboard. Progress events describe tool activity and results, never private model reasoning. See VERIFICATION.md for current release checks.
 
 Architecture choices and their current limits are recorded in [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## License
+
+GraphScope is available under the [MIT License](LICENSE).

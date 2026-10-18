@@ -2,6 +2,8 @@
 
 ## 0.1.0b1 — local-first beta
 
+- Licensed under MIT; license text included in Python distributions.
+
 - Repository maps and Git worktree/index/revision blast-radius comparisons.
 - Before/after findings, confirmed hypothetical changes and literal resource/test links.
 - Explicit Python/JavaScript/TypeScript workspace HTTP/broker contracts.
