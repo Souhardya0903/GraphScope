@@ -46,3 +46,8 @@
 .workflow-tabs { display: flex; gap: .75rem; padding: .75rem 1.25rem; }
 .workflow-tabs [aria-pressed="true"] { border-color: var(--accent-blue); color: var(--accent-blue); }
 .snapshot-context { padding: .4rem 1.25rem; color: var(--text-secondary); font-size: .8rem; }
+
+.workflow-tabs { padding: 14px 28px 0; gap: 4px; }
+.workflow-tabs .apple-btn { border: 0; background: transparent; border-radius: 0; border-bottom: 2px solid transparent; padding: 12px 16px; color: var(--text-muted); font-size: 12px; }
+.workflow-tabs [aria-pressed="true"] { border-bottom-color: var(--accent-blue); color: var(--text-primary); }
+@media (max-width: 700px) { .workflow-tabs { padding: 6px 12px 0; }.workspace-split { grid-template-columns: 1fr; overflow: auto; }.inspector-pane { min-height: 300px; } }

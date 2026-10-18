@@ -62,8 +62,33 @@ test('local algorithms repository produces its own impact graph', async ({ page 
   await analysis.getByLabel('Repository path').fill(root);
   await analysis.getByLabel('Qualified targets').fill('algorithms.math.goldbach.goldbach');
   await analysis.getByRole('button', { name: 'Analyze repository' }).click();
-  await expect(analysis.getByText(/10 mapped\/affected functions/)).toBeVisible();
+  await expect(analysis.getByLabel('Analysis summary').getByText('10', { exact: true })).toBeVisible();
   await expect(analysis.locator('.graph-node')).toHaveCount(10);
   await expect(analysis.getByText('Results for ' + root, { exact: true })).toBeVisible();
   await expect(page.getByLabel('Investigation question')).toHaveCount(0);
+});
+
+
+test('Click graph labels stay within cards and the workspace responds to mobile', async ({ page }) => {
+  const root = resolve('..', 'cloned_repos', 'click');
+  test.skip(!existsSync(root), 'Optional local repository fixture');
+  await page.setViewportSize({ width: 1440, height: 1100 });
+  await page.goto('/');
+  const analysis = page.getByRole('region', { name: 'Repository change analysis' });
+  await analysis.getByLabel('Analysis mode').selectOption('impact');
+  await analysis.getByLabel('Repository path').fill(root);
+  await analysis.getByLabel('Qualified targets').fill('click._compat.term_len');
+  await analysis.getByRole('button', { name: 'Analyze repository' }).click();
+  await expect(analysis.locator('.graph-node').first()).toBeVisible();
+  expect(await analysis.locator('.node-label').evaluateAll(labels => labels.every(label => getComputedStyle(label).overflow === 'hidden' && getComputedStyle(label).textOverflow === 'ellipsis'))).toBeTruthy();
+  await page.screenshot({ path: '../reports/ui-desktop.png', fullPage: true });
+  await analysis.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  await expect(analysis.locator('.canvas-toolbar')).toContainText('130%');
+  await analysis.getByRole('button', { name: 'Fit graph', exact: true }).click();
+  await expect(analysis.locator('.canvas-toolbar')).toContainText('100%');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(analysis.getByLabel('Repository path')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+  await analysis.locator('.analysis-graph').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: '../reports/ui-mobile.png', fullPage: true });
 });

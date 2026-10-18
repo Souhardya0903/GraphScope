@@ -1,8 +1,8 @@
 /* Apple Design Foundations & Theme Tokens */
 :root {
-  --bg-primary: #0d1117;
-  --bg-secondary: #161b22;
-  --bg-tertiary: #21262d;
+  --bg-primary: #0b111a;
+  --bg-secondary: #111b28;
+  --bg-tertiary: #1b2a3b;
   --bg-glass: rgba(22, 27, 34, 0.72);
   --bg-glass-heavy: rgba(13, 17, 23, 0.85);
   --bg-glass-active: rgba(255, 255, 255, 0.08);
@@ -12,10 +12,10 @@
   --border-focus: #388bfd;
 
   --text-primary: #f0f6fc;
-  --text-secondary: #8b949e;
-  --text-muted: #6e7681;
+  --text-secondary: #9baabe;
+  --text-muted: #8594a9;
 
-  --accent-blue: #2f81f7;
+  --accent-blue: #51b8bd;
   --accent-blue-subtle: rgba(47, 129, 247, 0.15);
   --accent-emerald: #3fb950;
   --accent-emerald-subtle: rgba(63, 185, 80, 0.15);
@@ -105,3 +105,8 @@ button:active {
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-bottom: 1px solid var(--border-subtle);
 }
+
+button { color: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 3px; }
+button:disabled { cursor: not-allowed; opacity: .5; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }

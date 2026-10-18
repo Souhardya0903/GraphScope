@@ -125,8 +125,8 @@ export function buildGraphData(
   });
 
   const nodes: GraphNode[] = [];
-  const layerSpacingX = 260;
-  const nodeSpacingY = 90;
+  const layerSpacingX = 360;
+  const nodeSpacingY = 100;
 
   layersMap.forEach((idsInLayer, layer) => {
     const totalHeight = (idsInLayer.length - 1) * nodeSpacingY;
