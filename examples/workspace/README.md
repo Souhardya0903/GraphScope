@@ -3,6 +3,8 @@
 These files are source-analysis fixtures, not running services. Indexing never
 imports them or contacts the illustrative broker, cache, or SQL database.
 
+See the [project README](../../README.md) for setup and dashboard testing.
+
 From the project root:
 
 ```powershell

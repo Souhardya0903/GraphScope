@@ -1,333 +1,284 @@
 # GraphScope
 
-A Python dependency blast-radius assistant backed by FalkorDB.
-Given a function, GraphScope will find potential callers and affected FastAPI
-endpoints, with source evidence and explicit analysis gaps.
+Understand the potential blast radius of a code change before making it.
 
-The synthetic commerce fixture (Stage 1) and static ingestion pipeline (Stage 2)
-are implemented. Stage 3 adds cloud graph persistence and deterministic dependency
-queries. Stage 4 adds bounded investigation tools, structured reports, Ollama Cloud, Gemini and OpenAI
-adapter, and a local tool-loop test mode. The local beta API and dashboard are available; see LOCAL_BETA.md.
+GraphScope maps source dependencies, traces callers and affected API endpoints,
+compares Git revisions, and inspects dependencies across declared service workspaces.
+Findings include source locations, resolution rules, and explicit analysis limitations.
 
-## Run the local beta
+**Status:** local-first hackathon beta. Python and a subset of JavaScript/TypeScript
+are supported. Results describe potential static impact, not guaranteed runtime behavior.
 
-See [LOCAL_BETA.md](LOCAL_BETA.md) for reproducible Windows/Linux setup and the
-single-origin launcher: `.venv/Scripts/python.exe -m graphscope serve --allow-root "D:\YourRepository"`.
-The server binds to 127.0.0.1:8080 and serves the built dashboard plus API. Public
-multi-user hosting is not supported by this beta.
+## What you can do
 
-## Repository changes and cross-service impact
+| Analysis mode | Purpose |
+|---|---|
+| Repository mapping | Explore functions, resolved calls, endpoints, and resource accesses. |
+| Selected targets | Trace potential impact from one or more exact function names or a literal resource identity. |
+| Proposed change | Describe an intended change, review candidate functions, and confirm targets before calculating impact. |
+| Git changes | Map worktree, staged, or committed edits to symbols and inspect before/after impact. |
+| Service workspace | Map declared services and infer HTTP/message dependencies, with service filtering and contract evidence. |
 
-The expanded analysis CLI supports Git worktree/staged/revision comparisons,
-before/after multi-target blast radius, confirmed proposed changes, literal resources,
-static test links, and manifest-driven Python/TypeScript service workspaces.
-See [ANALYSIS_GUIDE.md](ANALYSIS_GUIDE.md) for commands, supported subsets and limits.
-The API and dashboard expose these operations in the local-first beta.
+The React dashboard includes graph fitting, zoom/pan, node selection, dependency
+evidence, grouped coverage reporting, and JSON export. Static test links identify
+resolved caller relationships to tests; they do not execute tests or measure runtime coverage.
+
+## Quick start
+
+Requires Git, Python **3.11+**, and Node.js **22.12+**. Release verification uses Node 24.
+Run from a source checkout so the dashboard and parser assets remain available.
+
+```sh
+git clone https://github.com/Souhardya0903/GraphScope.git
+cd GraphScope
+```
+
+### Windows PowerShell
 
 ```powershell
-.\.venv\Scripts\python.exe -m graphscope.analysis changes . --base HEAD --head worktree --output reports/change-impact.json
+powershell -ExecutionPolicy Bypass -File scripts/setup.ps1
+.\.venv\Scripts\python.exe -m graphscope serve --port 8080
 ```
 
-For JavaScript/TypeScript parsing only: `npm ci --prefix tools/javascript --ignore-scripts`.
-No model calls or FalkorDB writes occur unless explicitly selected.
+### Linux / macOS
 
-## Layout
-
-```text
-src/graphscope/
-  config.py          # Application configuration
-  models.py          # Shared snapshot, evidence, and report contracts
-  ingestion/         # File discovery, AST extraction, symbol resolution
-  graph/             # FalkorDB persistence and bounded queries
-  investigation/     # Deterministic impact analysis and bounded agent tools
-  api/               # FastAPI backend
-  ui/                # Streamlit interface
-examples/commerce/   # Synthetic FastAPI demo and independent behavior tests
-tests/
-  unit/              # Extractor and resolver behavior
-  integration/       # FalkorDB and end-to-end behavior
-  fixtures/          # Small source samples and expected relationships
-scripts/             # Database connection verification
-compose.yaml         # Local FalkorDB server and browser
+```sh
+sh scripts/setup.sh
+.venv/bin/python -m graphscope serve --port 8080
 ```
 
-## Development setup
+Open **http://127.0.0.1:8080** and choose **Repository analysis**. Setup creates the
+virtual environment, installs dependencies and the JavaScript parser, and builds the dashboard.
 
-Use Python 3.11 or newer. From PowerShell:
+All five repository-analysis modes work without Docker, FalkorDB, or an LLM key.
+The separate stored-snapshot investigation workflow requires FalkorDB.
+
+For an external repository, allow its directory when launching:
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev]"
-Copy-Item .env.example .env
+.\.venv\Scripts\python.exe -m graphscope serve --allow-root "D:\YourRepository"
 ```
 
-Dependencies are declared in `pyproject.toml`. `requirements.lock.txt` records
-the installed dependency versions verified on Windows with Python 3.15.0.
-To reuse these versions in a fresh environment, replace the install command above
-with `python -m pip install -r requirements.lock.txt -e ".[dev]"`.
-This version snapshot is not a cross-platform lockfile with artifact hashes.
-The graph client loads `.env`; FalkorDB must be provisioned separately. Local
-Compose and FalkorDB Cloud are supported through the same connection settings.
+Use `.venv/bin/python` on Linux/macOS. Repeat `--allow-root` for additional roots.
+Bundled project examples are allowed by default. Keep the server terminal running;
+use a hard browser refresh after rebuilding the frontend.
 
-The local `.venv` and `.env` have been created and are ignored by Git. In VS Code,
-select `.venv\Scripts\python.exe` using **Python: Select Interpreter**.
-You can use `.\.venv\Scripts\python.exe` directly if environment activation is blocked.
+## First demonstration
 
-## Local FalkorDB
+Use these inputs in the dashboard:
 
-Install Docker Desktop with its WSL 2 backend and start it in Linux container mode.
-Then run:
+| Field | Value |
+|---|---|
+| Analysis mode | Selected targets |
+| Repository path | `examples/commerce` |
+| Qualified targets | `inventory.validate_stock` |
+| Resource identity | Empty |
 
-```powershell
-docker compose up -d --wait
-.\.venv\Scripts\python.exe scripts/check_falkordb.py
-```
+Click **Analyze repository**. Potentially affected endpoints include **POST `/orders`**
+and **POST `/reservations`**. Select `orders.place_order` from the function list to
+inspect dependency evidence. Endpoint graph edges use declared handlers rather than
+layout guesses.
 
-The database is available at `localhost:6379`; its browser is at
-<http://localhost:3000>. Ports are bound to this computer only. Data is retained
-in a Docker volume. The verification script writes, reads, and removes a temporary
-graph; it does not modify application graphs. It loads `.env`, so it checks your
-cloud instance when cloud credentials are configured there. For a local check,
-set shell variables to localhost and its port, clearing cloud username/password.
+For a multi-service example, choose **Service workspace** and enter
+`examples/workspace/workspace.json`. Leave service/target fields empty for the map.
+Then use service `stock` and target `app.validate_stock` for cross-service impact.
+HTTP and message links are inferred from explicit workspace contracts, not observed traffic.
 
-Stop the service with `docker compose down`. The current image uses `latest`;
-pin a tested image digest after the first successful startup.
+See [Testing each analysis mode](#testing-each-analysis-mode) below for a repeatable
+checklist. Examples are bundled in Git; locally cloned third-party repositories and
+generated reports are not.
 
-Reference: [FalkorDB Docker setup](https://falkordb.github.io/docs-staging/operations/docker/).
+## Optional LLM suggestions
 
-## First milestone
+**Proposed change** supports offline lexical matching, Gemini, Ollama Cloud, and OpenAI.
+Click **Describe a change**, choose a provider, and leave targets empty to request suggestions.
+The UI asks permission to share the description and symbol catalog. Review the candidate,
+select it, and explicitly confirm before calculating static impact. Confirmation does
+not make another model request. Provider failures offer an offline fallback.
 
-Stage 0: FalkorDB Cloud connectivity was verified with a disposable graph write/read.
-Stage 1: the commerce fixture is implemented; see [its README](examples/commerce/README.md)
-for the dependency ground truth, run commands, and deliberate dynamic call.
-Stage 2: AST extraction and scoped resolution work without database access.
-
-## Test Stage 2
-
-From the repository root:
-
-```powershell
-.\.venv\Scripts\python.exe -m graphscope.ingestion examples/commerce --output reports/commerce-snapshot.json
-.\.venv\Scripts\python.exe -m pytest tests/unit -q
-```
-
-Expected fixture extraction: **8 files, 8 functions, 5 resolved calls**, and these endpoints:
-
-- `POST /orders`
-- `POST /reservations`
-- `GET /products`
-
-Inspect the output:
-
-```powershell
-$snapshot = Get-Content reports/commerce-snapshot.json -Raw | ConvertFrom-Json
-$snapshot.endpoints | Format-Table method, path
-$snapshot.callsites | Where-Object file_path -eq 'dispatch.py' | Format-Table target_text, resolution_status, reason
-```
-
-Both call sites in `getattr(handlers, event_name)()` remain unresolved: the `getattr`
-call itself and the call of its returned object. Other external/attribute calls
-remain unresolved too: the current fixture has 5 unresolved sites in total.
-Two gaps explain unsupported Pydantic class bodies. Counts are measured against
-the current fixture, excluding tests by default. Add `--include-tests` to include
-test functions as ordinary functions. The expanded analysis API/CLI additionally identifies static caller-based test links.
-
-The JSON includes file hashes, source lines, signatures, async flags, explicit
-call evidence, route mount evidence, parse errors, and unresolved-site reasons.
-Ingestion never imports or executes source and needs neither a running demo app
-nor FalkorDB. Your demo's port (8080) does not affect extraction.
-
-Supported: top-level functions, same-module calls, explicit absolute/relative
-function imports and aliases, simple module aliases, literal FastAPI app/router
-decorators, and module-level `include_router` calls with literal prefixes.
-Unsupported: class/method dispatch, nested functions, arbitrary decorators,
-re-exports, dynamic imports, computed prefixes, router mounts inside functions,
-and full Python runtime name binding. Unsupported patterns remain gaps or unresolved
-calls. The pipeline currently assumes no runtime monkey patching of namespace or
-router objects. Stage 3 persists this extracted snapshot and queries its blast radius.
-
-Resources and static test links come later. PR review and automatic execution of
-analyzed repositories are outside the current scope.
-
-## Stage 3: cloud graph storage and queries
-
-The client reads connection settings from `.env` (shell environment values take
-precedence). It supports username/password, TLS with certificate validation,
-connection pooling, and timeouts. Credentials are never stored in snapshot data.
-
-Index the synthetic fixture and inspect its blast radius:
-
-```powershell
-.\.venv\Scripts\python.exe -m graphscope.graph index examples/commerce --target inventory.validate_stock
-```
-
-Expected: `status: ready`, 8 files, 8 functions, 5 call edges, 3 endpoints.
-The investigation returns `/orders` and `/reservations`, caller paths with evidence
-IDs, unresolved calls, extraction gaps, and depth/path limits. `/products` is not
-reachable from this target within the supported scope. Each index command creates
-a new immutable snapshot; the output includes its `snapshot_id`.
-
-Query an existing snapshot without reindexing:
-
-```powershell
-.\.venv\Scripts\python.exe -m graphscope.graph investigate YOUR_SNAPSHOT_ID inventory.validate_stock
-.\.venv\Scripts\python.exe -m graphscope.graph investigate YOUR_SNAPSHOT_ID inventory.validate_stock --max-depth 1 --max-paths 1
-```
-
-Replace `YOUR_SNAPSHOT_ID` with the ID printed by indexing. Limits and truncation
-are part of the result; a limited result does not establish safety. The target
-itself is included when finding endpoints, including when it is a route handler.
-Forward traversal and source retrieval are available through `GraphQueries.traverse`
-and `GraphQueries.evidence(..., include_source=True)`. Source excerpts are checked
-against indexed hashes, so changed or missing local source cannot silently appear
-as evidence for an older snapshot. Source files are not uploaded to FalkorDB.
-
-Bulk writes use batches of 200. Read queries require `ready` status and are scoped
-to the chosen snapshot. A write claim prevents simultaneous builds of one ID;
-repeating a successfully stored identical snapshot is idempotent. Failed/unfinished
-builds remain hidden. Re-extract to get a fresh snapshot ID after a failed build.
-Old snapshots are retained; no automatic cleanup or application-data deletion runs.
-
-Cloud integration tests (create and delete their own uniquely named test graph):
-
-```powershell
-$env:GRAPHSCOPE_INTEGRATION = "1"
-New-Item -ItemType Directory -Path reports -Force | Out-Null
-$testPath = Join-Path (Get-Location) ('reports\stage3-' + [guid]::NewGuid().ToString('N'))
-.\.venv\Scripts\python.exe -m pytest tests/integration/test_falkordb_graph.py -q -p no:cacheprovider --basetemp $testPath
-Remove-Item Env:GRAPHSCOPE_INTEGRATION
-```
-
-Expected: **4 passed** with the configured FalkorDB service reachable. Without the
-opt-in flag these tests are skipped. Unit and fixture tests need no cloud connection.
-The Stage 3 baseline passed **34 tests** with integration enabled. The existing
-HTTP test client also emits a dependency deprecation warning.
-
-Plain `python -m pytest -q` now allocates a fresh temporary directory under ignored
-`reports/pytest-*` instead of the shared Windows temp folder. Pytest's optional cache
-is disabled to avoid stale cache permissions. An explicitly supplied `--basetemp`
-still takes precedence. Per-run temporary files remain under `reports/` for inspection.
-
-Resources and static test links are not ingested yet; their lookup methods return
-`supported: false` rather than claiming no impact. Snapshot revision/dirty metadata,
-automatic recovery of abandoned builds remain future work.
-
-## Stage 4: bounded investigation
-
-Index once, then investigate that snapshot (PowerShell):
-
-```powershell
-$indexed = .\.venv\Scripts\python.exe -m graphscope.graph index examples/commerce | ConvertFrom-Json
-.\.venv\Scripts\python.exe -m graphscope.investigation $indexed.snapshot_id "What should I check if validate_stock changes?" --target inventory.validate_stock --provider test --output reports/investigation.json
-```
-
-`test` runs a deterministic planner through real graph tools. It makes no LLM/API
-requests and produces no model recommendations. Expected: both dependent POST routes,
-two direct callers, one indirect caller, source references, five unresolved call
-sites, and `agent.status: completed` with `agent.provider: test`. Completeness is
-`partial`, because unresolved calls and unsupported class bodies remain visible.
-Use `--provider none` (the default) to generate just the deterministic report.
-Neither mode depends on the demo HTTP server or its port 8080.
-
-For Ollama Cloud, set these entries in your ignored `.env`:
-
-```dotenv
-OLLAMA_API_KEY=your-key
-OLLAMA_MODEL=your-direct-api-model-id
-```
-
-Use the exact model name listed by `https://ollama.com/api/tags` and choose a model
-with tool calling available to your account. No local Ollama installation is needed.
-The adapter uses the fixed `https://ollama.com/api/chat` endpoint; keys are sent in
-the authorization header. Cloud usage is subject to your account's credits/limits.
-
-Index the example first and capture its output (the indexing CLI has no `--output` flag):
-
-```powershell
-New-Item -ItemType Directory -Force reports | Out-Null
-.\.venv\Scripts\python.exe -m graphscope.graph index examples/commerce --target inventory.validate_stock | Out-File -Encoding utf8 reports/commerce-index.json
-$indexed = Get-Content reports/commerce-index.json -Raw | ConvertFrom-Json
-.\.venv\Scripts\python.exe -m graphscope.investigation $indexed.snapshot_id "What should I review before changing validate_stock?" --target inventory.validate_stock --provider ollama --output reports/ollama-investigation.json
-```
-
-Check `agent.provider` is `ollama` and `agent.status` is `completed`. Status `failed`
-or `limited` means the model did not complete; deterministic findings are still
-retained for an explicit target. Questions and selected graph metadata are sent to
-Ollama Cloud; source snippets remain excluded unless `--share-source` is supplied.
-A live Ollama Cloud investigation completed against the commerce snapshot, returning model recommendations with source sharing disabled. Automated tests mock the provider API.
-
-For Gemini, save these entries in your ignored `.env` (keep your key out of Git and chat):
+Create an ignored `.env` file using `.env.example` as a template, without overwriting
+existing configuration. Set the selected provider's key and a tool-capable model ID
+available to your account:
 
 ```dotenv
 GEMINI_API_KEY=your-key
-GEMINI_MODEL=your-account-model-id
+GEMINI_MODEL=your-model
+# Alternatives:
+# OLLAMA_API_KEY / OLLAMA_MODEL
+# OPENAI_API_KEY / OPENAI_MODEL
 ```
 
-Choose a function-calling model available on your account's free tier, then run:
+Restart the server after changing configuration. Credentials stay on the server.
+Proposal requests send a description, symbol names/IDs, and relative file paths;
+they exclude source contents. Catalogs are limited to **300 functions / 45,000
+characters**, with a 30-second model-request timeout. Larger repositories can use
+offline matching or explicit targets. Provider access and quota are account-dependent.
+
+LLMs suggest targets and manual checks. Source analysis and graph traversal establish
+the reported dependencies; model text cannot supply dependency edges.
+
+## CLI
+
+PowerShell examples, from the checkout root:
 
 ```powershell
-.\.venv\Scripts\python.exe -m graphscope.investigation $indexed.snapshot_id "What should I review before changing validate_stock?" --target inventory.validate_stock --provider gemini --output reports/gemini-investigation.json
+.\.venv\Scripts\python.exe -m graphscope.analysis map examples/commerce --output reports/commerce-map.json
+.\.venv\Scripts\python.exe -m graphscope.analysis impact examples/commerce --target inventory.validate_stock --output reports/commerce-impact.json
+.\.venv\Scripts\python.exe -m graphscope.analysis changes examples/commerce --base HEAD --head worktree --output reports/commerce-changes.json
+.\.venv\Scripts\python.exe -m graphscope.analysis workspace examples/workspace/workspace.json --output reports/workspace-map.json
 ```
 
-Check `agent.provider` is `gemini` and `agent.status` is `completed`. If access or
-quota fails, the report retains deterministic findings and records the failure.
-The adapter uses Google's generateContent API with function calling. Free-tier
-limits and data handling depend on your account and Google's current terms.
-
-For OpenAI, save these entries in your ignored `.env`:
-
-```dotenv
-OPENAI_API_KEY=your-key
-OPENAI_MODEL=your-account-model-id
-```
-
-Choose a model available to your API account that supports Responses function calls.
-Then run:
+Use `.venv/bin/python` on Linux/macOS. Additional examples:
 
 ```powershell
-.\.venv\Scripts\python.exe -m graphscope.investigation $indexed.snapshot_id "What should I review before changing validate_stock?" --target inventory.validate_stock --provider openai
+.\.venv\Scripts\python.exe -m graphscope.analysis propose examples/commerce "Change validate_stock" --target inventory.validate_stock --confirm
+.\.venv\Scripts\python.exe -m graphscope.analysis impact examples/workspace/stock --resource redis:inventory
+.\.venv\Scripts\python.exe -m graphscope.analysis workspace examples/workspace/workspace.json --service stock --target app.validate_stock
 ```
 
-The adapter uses [OpenAI Responses function calling](https://developers.openai.com/api/docs/guides/function-calling)
-with strict function schemas and `store: false`. Live provider access, quota,
-model compatibility, and billing depend on your API account. Adapter behavior is
-tested with mocked HTTP responses; no live OpenAI call was made during implementation.
+Run `python -m graphscope.analysis MODE --help` for each command's options. For
+Git comparisons, use `--head index` for staged edits or a commit/ref for another revision.
 
-The model sees your question and selected graph/evidence slices. Source snippets are
-excluded from model tool results unless you explicitly pass `--share-source`.
-When enabled, excerpts may be sent to your selected provider and must match indexed file hashes.
-`store: false` disables response application-state storage; it is not a claim of
-zero data retention across all provider logging/policies. No full repository is sent.
+## Optional FalkorDB snapshots and investigations
 
-Reports separate `graph_evidence`, `recommended_checks` (labelled `deterministic`
-or `model`), `analysis_gaps`, and short tool activity events. Model output cannot
-replace graph findings or switch an explicitly selected target. If a model fails,
-verified deterministic findings remain available when `--target` was provided.
-Without a target, unresolved/ambiguous selection requires clarification. A database
-failure never produces a normal-looking fabricated report. Redis/resource analysis
-and static test linking still return explicitly unsupported results.
+FalkorDB stores snapshots for the separate **Stored snapshot investigation** workflow.
+For a local Docker installation:
 
-Defaults: 6 model turns, 12 tool calls, 100 database reads, a 90-second investigation
-deadline checked between operations, a 30-second per-model-request timeout, 60,000
-context characters, 12,000 characters per tool result, and a 250,000-character report
-cap. Traversal uses depth 8 and at most 30 paths for this service. Network timeouts
-remain per blocking operation; this is not a process-level hard wall-clock kill.
-The agent has no shell, arbitrary Cypher, file-path, source-execution, or write tool.
+```sh
+docker compose up -d --wait
+```
 
-Run all tests, including real graph/tool/service integration but no paid model calls:
+Configure `.env` for your local instance or FalkorDB Cloud, then verify connectivity:
 
 ```powershell
-$env:GRAPHSCOPE_INTEGRATION = "1"
-.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe scripts/check_falkordb.py
+.\.venv\Scripts\python.exe -m graphscope.analysis map examples/commerce --store --output reports/commerce-stored.json
 ```
 
-Historical Stage 4 checkpoint: **71 passed**, including additional Stage 4 tests retained locally and excluded from this commit. A fresh checkout contains the existing Stage 1–3 tests, so its test count will differ. One upstream HTTP test-client deprecation warning remains. Automated verification used mocked model APIs; Ollama Cloud was also verified separately with a live investigation.
+The check uses a disposable graph. The stored map includes a snapshot `id` that can
+be selected in the dashboard or passed to `python -m graphscope.investigation`.
+Stored investigation supports direct deterministic analysis and optional model providers.
+Source excerpts in that workflow are opt-in and checked against indexed hashes.
 
-The local beta now exposes analysis through the API and dashboard. Progress events describe tool activity and results, never private model reasoning. See VERIFICATION.md for current release checks.
+## Coverage and limits
 
-Architecture choices and their current limits are recorded in [ARCHITECTURE.md](ARCHITECTURE.md).
+- Python resolution supports explicit imports, unambiguous re-exports, package/submodule
+  calls, and a bounded subset of class-method lookup and FastAPI routes.
+- Dynamic dispatch, arbitrary decorators, nested functions, runtime-generated routing,
+  and other unsupported patterns can leave dependencies unresolved.
+- JavaScript/TypeScript analysis supports a subset of functions/imports and literal
+  HTTP calls. Java and universal framework/language support are not implemented.
+- Resource identities and cross-service contracts can be inferred and require review.
+- Analysis coverage separates repository-wide limitations, unresolved calls inside
+  found affected functions, and builtin calls. The scoped view does not prove other
+  code is unrelated; unresolved incoming calls may hide additional dependents.
+- Graph previews are bounded; exports preserve full report relationships. Traversal
+  truncation and depth limits are explicitly reported.
+
+An empty impact result does not establish safety. Analysis never imports or executes
+repository source. This beta binds to loopback and assumes a trusted local operator;
+public multi-user hosting, tenant isolation, and authentication are not implemented.
+
+## Verification
+
+After setup:
+
+```powershell
+.\.venv\Scripts\python.exe -m graphscope doctor
+.\.venv\Scripts\python.exe -m ruff check src tests examples
+.\.venv\Scripts\python.exe -m pytest tests/unit -q
+npm --prefix frontend run build
+npm --prefix frontend test -- --maxWorkers=1
+npm --prefix frontend exec -- playwright install chromium
+npm --prefix frontend run test:e2e
+```
+
+Use `.venv/bin/python` on Linux/macOS. Browser tests launch their own server on
+port 8765; keep it free. Tests using optional local third-party clones may be skipped
+on a fresh checkout. FalkorDB integration tests require `GRAPHSCOPE_INTEGRATION=1`
+and a configured reachable instance. Normal automated checks do not call paid models.
+
+## Project layout
+
+```text
+frontend/                 React + TypeScript dashboard and browser tests
+src/graphscope/
+  ingestion/              Python AST extraction and dependency resolution
+  analysis/               Maps, changes, proposals, impact, and service workspaces
+  api/                    Local FastAPI endpoints and filesystem boundaries
+  graph/                  FalkorDB snapshot persistence and queries
+  investigation/          Bounded optional model/tool investigation
+  models.py               Shared report and snapshot contracts
+examples/commerce/        Bundled function/endpoint demonstration
+examples/workspace/       Bundled Python/TypeScript service contracts
+scripts/                  Setup and database verification
+tools/javascript/         JavaScript/TypeScript source parser
+tests/                    Unit, fixture, and integration checks
+```
+
+## How the pieces connect
+
+```mermaid
+flowchart LR
+    UI[React dashboard] --> API[Local FastAPI API]
+    CLI[Python CLI] --> Engine[Analysis engine]
+    API --> Engine
+    Engine --> Parser[Python AST / JS-TS parser]
+    Parser --> Graph[Snapshot and dependency graph]
+    Graph --> Impact[Impact traversal and evidence]
+    Impact --> UI
+    API --> LLM[Optional target suggestions]
+    Graph --> DB[Optional FalkorDB persistence]
+```
+
+The dashboard lives in `frontend/`; API routes in `src/graphscope/api/` delegate to
+`analysis/`. Python extraction uses `ingestion/`; JavaScript/TypeScript extraction
+uses `tools/javascript/`. Offline reports use the extracted graph directly.
+`graph/` and `investigation/` support stored-snapshot investigations. Setup scripts
+install these components; tests validate their contracts and browser workflows.
+
+## Testing each analysis mode
+
+Run the server from the checkout root, open the dashboard, and use the bundled
+examples. Paths below are relative to the checkout, so another developer does not
+need the original author's filesystem paths or ignored cloned repositories.
+
+| Mode | Inputs | Expected result |
+|---|---|---|
+| Repository mapping | Root `examples/commerce` | Nonzero function counts, resolved dependencies, endpoints, and inspectable limitations. |
+| Selected targets | Root `examples/commerce`; target `inventory.validate_stock`; resource empty | POST `/orders` and POST `/reservations` are potentially affected; GET `/products` is not. Select `orders.place_order` for evidence. |
+| Resource impact | Selected targets mode; root `examples/workspace/stock`; targets empty; resource `redis:inventory` | `app.read_stock` and the stock route are identified through the inferred resource access. |
+| Proposed change | Root `examples/commerce`; description `Change validate_stock to reject zero quantity` | Review the candidate, select it, check confirmation, and run again to obtain impact. Model providers additionally require catalog-sharing consent. |
+| Git changes | Root `examples/commerce`; base `HEAD`; compare `worktree` | Add a temporary comment inside `validate_stock` in `examples/commerce/inventory.py` and save. Changed-symbol and before/after results appear. Remove only that comment afterward. |
+| Workspace map | Manifest `examples/workspace/workspace.json`; service/target/changed-service empty | Three service cards, aggregate totals, inferred contract evidence, graph, and working service filtering. |
+| Workspace target impact | Same manifest; service `stock`; target `app.validate_stock`; changed-service empty | Potential stock-route and client impact through an inferred HTTP contract. |
+| Workspace Git impact | Same manifest; changed-service `stock`; service and target empty; HEAD versus worktree | Temporarily edit inside `validate_stock` in `examples/workspace/stock/app.py`; inspect before/after impact and undo that temporary edit. |
+
+Check JSON export, node selection, long-name tooltips, zoom/pan, Fit graph, and a
+narrow browser window. Invalid paths and nonexistent targets should produce visible
+errors. Changing inputs should clear previous results. Inspect both affected scope
+and Whole repository in the coverage panel. Model failures should offer an offline fallback.
+
+For a bug report, include the commit (`git rev-parse --short HEAD`), OS, Python/Node
+versions, mode, exact inputs, reproduction steps, expected/actual result, and screenshot
+or sanitized error. Do not share `.env`, keys, passwords, or private source.
+
+## Troubleshooting
+
+| Symptom | Action |
+|---|---|
+| Cannot reach API | Keep the server running and open its exact URL. |
+| Old frontend | Rebuild with `npm --prefix frontend run build`, then hard-refresh. |
+| Port 8080 busy | Launch with `--port 8081` and open that port. |
+| External root rejected | Restart with `--allow-root` for the repository/workspace directories. |
+| JS/TS parser unavailable | Run `npm ci --prefix tools/javascript --ignore-scripts`. |
+| No Git changes found | Save the edit, use `worktree`, and inspect `git diff`. |
+| Model catalog too large | Use a smaller source root, offline matching, or exact targets. |
+| Model credentials changed | Restart the server; credentials are loaded on startup. |
+
+Fixture-specific details remain in [commerce](examples/commerce/README.md) and
+[workspace](examples/workspace/README.md). This README is the main setup and testing reference.
 
 ## License
 
-GraphScope is available under the [MIT License](LICENSE).
+[MIT](LICENSE).
