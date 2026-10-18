@@ -7,7 +7,7 @@ endpoints, with source evidence and explicit analysis gaps.
 The synthetic commerce fixture (Stage 1) and static ingestion pipeline (Stage 2)
 are implemented. Stage 3 adds cloud graph persistence and deterministic dependency
 queries. Stage 4 adds bounded investigation tools, structured reports, Ollama Cloud, Gemini and OpenAI
-adapter, and a local tool-loop test mode. The API and UI remain pending.
+adapter, and a local tool-loop test mode. The local beta API and dashboard are available; see LOCAL_BETA.md.
 
 ## Run the local beta
 
@@ -22,7 +22,7 @@ The expanded analysis CLI supports Git worktree/staged/revision comparisons,
 before/after multi-target blast radius, confirmed proposed changes, literal resources,
 static test links, and manifest-driven Python/TypeScript service workspaces.
 See [ANALYSIS_GUIDE.md](ANALYSIS_GUIDE.md) for commands, supported subsets and limits.
-Backend/frontend implementation remains deferred.
+The API and dashboard expose these operations in the local-first beta.
 
 ```powershell
 .\.venv\Scripts\python.exe -m graphscope.analysis changes . --base HEAD --head worktree --output reports/change-impact.json
@@ -131,7 +131,7 @@ call itself and the call of its returned object. Other external/attribute calls
 remain unresolved too: the current fixture has 5 unresolved sites in total.
 Two gaps explain unsupported Pydantic class bodies. Counts are measured against
 the current fixture, excluding tests by default. Add `--include-tests` to include
-test functions as ordinary functions; static test-to-target classification is deferred.
+test functions as ordinary functions. The expanded analysis API/CLI additionally identifies static caller-based test links.
 
 The JSON includes file hashes, source lines, signatures, async flags, explicit
 call evidence, route mount evidence, parse errors, and unresolved-site reasons.
@@ -322,9 +322,8 @@ $env:GRAPHSCOPE_INTEGRATION = "1"
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Local implementation verification: **71 passed**, including additional Stage 4 tests retained locally and excluded from this commit. A fresh checkout contains the existing Stage 1–3 tests, so its test count will differ. One upstream HTTP test-client deprecation warning remains. Automated verification used mocked model APIs; Ollama Cloud was also verified separately with a live investigation.
+Historical Stage 4 checkpoint: **71 passed**, including additional Stage 4 tests retained locally and excluded from this commit. A fresh checkout contains the existing Stage 1–3 tests, so its test count will differ. One upstream HTTP test-client deprecation warning remains. Automated verification used mocked model APIs; Ollama Cloud was also verified separately with a live investigation.
 
-Next: Stage 5 exposes these operations through the backend; it should stream tool
-activity and results, not hidden model reasoning.
+The local beta now exposes analysis through the API and dashboard. Progress events describe tool activity and results, never private model reasoning. See VERIFICATION.md for current release checks.
 
 Architecture choices and their current limits are recorded in [ARCHITECTURE.md](ARCHITECTURE.md).

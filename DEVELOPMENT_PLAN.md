@@ -11,7 +11,7 @@ This document outlines the architecture, data models, agent loop, and an **incre
 ```
                       +---------------------------------------+
                       |         React Frontend (Vite)         |
-                      |  - Live Agent Reasoning Stream (SSE)  |
+                      |  - Live Agent Activity Stream (SSE)  |
                       |  - Interactive Blast Radius Graph     |
                       |  - Source Code & Line Evidence Viewer |
                       |  - Analysis Gaps & Blind-Spots Drawer |
@@ -94,7 +94,7 @@ tests with integration enabled. Resource/test queries explicitly report unsuppor
 until those entity types are ingested. Stage 4 tools, deterministic structured
 reports, bounded orchestration, local test planner, and Ollama Cloud/Gemini/OpenAI adapters
 are implemented. Provider transport is mocked in automated tests; live model access
-requires OLLAMA_API_KEY/OLLAMA_MODEL, GEMINI_API_KEY/GEMINI_MODEL, or OPENAI_API_KEY/OPENAI_MODEL. Stage 5 and subsequent stages remain pending.
+requires OLLAMA_API_KEY/OLLAMA_MODEL, GEMINI_API_KEY/GEMINI_MODEL, or OPENAI_API_KEY/OPENAI_MODEL. The local beta now includes the backend, dashboard and end-to-end checks; public hosting remains future work.
 Stage 4 local verification: 71 tests passed (Stage 4 test files retained locally, excluded from this commit) with cloud integration enabled, and the CLI
 local tool-loop mode returned the expected two commerce endpoints. Live Ollama Cloud access completed with source sharing disabled. Live Gemini/OpenAI access remains unverified.
 
@@ -236,7 +236,7 @@ local tool-loop mode returned the expected two commerce endpoints. Live Ollama C
 
 - **Deliverables:**
   - React + Vite + TypeScript application in `frontend/`.
-  - **Live Agent Reasoning Stream**: Real-time display of agent thoughts, tool invocations, and FalkorDB query results.
+  - **Live Agent Activity Stream**: Display of progress summaries, tool invocations and graph results; never private model reasoning.
   - **Interactive Blast Radius Canvas**: SVG/Canvas dependency graph (Endpoints $\to$ Callers $\to$ Target $\to$ Resource $\to$ Tests).
   - **Source Evidence Drawer**: Syntax-highlighted code inspector with exact line highlights.
   - **Analysis Gaps Warning Panel**: Highlights dynamic calls and blind spots.
@@ -269,7 +269,7 @@ local tool-loop mode returned the expected two commerce endpoints. Live Ollama C
 
 The original numbered stages describe the narrower CLI/backend/UI delivery plan.
 The subsequent analysis phases expand the engine and do not imply that universal
-language/framework coverage is complete. Backend/frontend work is currently deferred.
+language/framework coverage is complete. Backend/frontend integration is delivered in the local-first beta.
 
 Implemented supported subsets now include:
 

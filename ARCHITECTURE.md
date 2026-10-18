@@ -1,7 +1,7 @@
 # Architecture review: Stages 1–3
 
 Reviewed 18 October 2026 against the code and fixture/cloud tests. This describes
-the current CLI prototype, not a deployed multi-user application.
+the original CLI prototype. The local beta integration is described in LOCAL_BETA.md; public multi-user deployment remains out of scope.
 
 Release verification: installation from `requirements.lock.txt` in a fresh virtual
 environment succeeded; `pip check`, Ruff for application/tests/fixtures, and all
@@ -20,7 +20,7 @@ same tool loop locally without pretending to be an LLM. Model turns, tool calls,
 query counts, context/result sizes, and request deadlines are capped. Reasoning
 items are replayed only to the provider when needed and never shown as activity.
 Source/checkouts and database access are still trusted operator inputs; public
-multi-tenant authorization and upload isolation remain Stage 5/deployment work.
+multi-tenant authorization and upload isolation remain public-hosting work.
 Stage 4 local verification: 71 passing tests with cloud integration enabled (additional Stage 4 tests are retained locally and excluded from this commit); provider
 HTTP requests are mocked. Live Ollama Cloud operation completed against the commerce snapshot with source sharing disabled. Live Gemini/OpenAI access remains unverified.
 
@@ -80,4 +80,4 @@ not findings and cannot claim exhaustive interpretation of a proposed change.
 
 Limits and unsupported constructs are documented in ANALYSIS_GUIDE.md. All expanded
 analysis reports remain partial. Incremental indexing and runtime validation remain
-future work; frontend/backend delivery is intentionally deferred.
+future work. The local beta now includes frontend/backend integration.

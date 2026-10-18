@@ -3,7 +3,7 @@
 The analysis CLI maps source, identifies changes, and reports potential impact.
 It runs locally without FalkorDB or model calls by default. It does not import
 repository Python modules, execute JavaScript, load tsconfig plugins, check out
-Git branches, or contact discovered service URLs. Backend/frontend work is deferred.
+Git branches, or contact discovered service URLs. The local beta API and dashboard expose these operations; see LOCAL_BETA.md.
 
 ## Setup
 

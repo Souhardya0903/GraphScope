@@ -32,3 +32,12 @@ are written under ignored reports/playwright. On Linux, install Chromium with
 `npx playwright install --with-deps chromium` from frontend/. The Python path defaults
 to the checkout's .venv, overridable with GRAPHSCOPE_PYTHON. Git/FalkorDB credentials
 remain operator configuration; never add .env to source control.
+
+
+Clean Linux GitHub Actions verification passed for release implementation f8783b0:
+https://github.com/Souhardya0903/GraphScope/actions/runs/39124566407
+
+All workflow steps passed, including the pinned FalkorDB service, locked installation,
+lint, Python integration tests, frontend tests/audit and single-origin browser flows.
+The local full suite includes additional retained tests, so CI test counts differ.
+A public open-source license selection remains pending the repository owner's choice.
