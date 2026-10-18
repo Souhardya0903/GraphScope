@@ -15,7 +15,13 @@ BATCH_SIZE = 200
 
 def validate_snapshot(snapshot: Snapshot):
     """Reject cross-snapshot references and missing evidence before touching the DB."""
-    entities = [*snapshot.files, *snapshot.functions, *snapshot.callsites, *snapshot.endpoints]
+    entities = [
+        *snapshot.files,
+        *snapshot.functions,
+        *snapshot.callsites,
+        *snapshot.endpoints,
+        *snapshot.resources,
+    ]
     if len({n.id for n in entities}) != len(entities):
         raise ValueError("Duplicate entity IDs")
     if any(n.snapshot_id != snapshot.id for n in entities):
@@ -58,6 +64,10 @@ def validate_snapshot(snapshot: Snapshot):
         handler = functions.get(endpoint.handler_id)
         if handler is None or handler.file_path != endpoint.file_path:
             raise ValueError("Endpoint references a missing or inconsistent handler")
+    for resource in snapshot.resources:
+        owner = functions.get(resource.owner_id)
+        if owner is None or owner.file_path != resource.file_path:
+            raise ValueError("Resource references a missing or inconsistent owner")
 
 
 class GraphRepository:
@@ -94,15 +104,22 @@ class GraphRepository:
             raise ValueError(
                 "Snapshot ID already exists with different content or incomplete status"
             )
-        for label in ("RepositorySnapshot", "File", "Function", "CallSite", "Endpoint"):
+        for label in (
+            "RepositorySnapshot",
+            "File",
+            "Function",
+            "CallSite",
+            "Endpoint",
+            "ResourceAccess",
+        ):
             self.ensure_index(label, "id")
-        for label in ("File", "Function", "CallSite", "Endpoint"):
+        for label in ("File", "Function", "CallSite", "Endpoint", "ResourceAccess"):
             self.ensure_index(label, "snapshot_id")
         claim = uuid4().hex
         ownership = self.write(
             "MERGE (s:RepositorySnapshot {id:$id}) ON CREATE SET s.status='building',"
             "s.digest=$digest,s.root=$root,s.indexed_at=$time,s.extractor_version=$version,"
-            "s.gaps=$gaps,s.claim=$claim RETURN s.claim",
+            "s.gaps=$gaps,s.metadata=$metadata,s.claim=$claim RETURN s.claim",
             {
                 "id": snapshot.id,
                 "claim": claim,
@@ -110,6 +127,7 @@ class GraphRepository:
                 "root": snapshot.root,
                 "time": snapshot.indexed_at,
                 "version": snapshot.extractor_version,
+                "metadata": json.dumps(snapshot.metadata),
                 "gaps": json.dumps([g.model_dump() for g in snapshot.gaps]),
             },
         )
@@ -121,6 +139,7 @@ class GraphRepository:
                 ("Function", snapshot.functions),
                 ("CallSite", snapshot.callsites),
                 ("Endpoint", snapshot.endpoints),
+                ("ResourceAccess", snapshot.resources),
             ):
                 rows = []
                 for node in nodes:
@@ -162,11 +181,17 @@ class GraphRepository:
                 "(b:Function {id:row.handler}) CREATE (a)-[:HANDLED_BY]->(b)",
                 [{"id": e.id, "handler": e.handler_id} for e in snapshot.endpoints],
             )
+            self.batches(
+                "UNWIND $rows AS row MATCH (a:Function {id:row.owner_id}),"
+                "(b:ResourceAccess {id:row.id}) CREATE (a)-[:ACCESSES]->(b)",
+                [r.model_dump(exclude_none=True) for r in snapshot.resources],
+            )
             for label, expected in (
                 ("File", len(snapshot.files)),
                 ("Function", len(snapshot.functions)),
                 ("CallSite", len(snapshot.callsites)),
                 ("Endpoint", len(snapshot.endpoints)),
+                ("ResourceAccess", len(snapshot.resources)),
             ):
                 actual = self.read(
                     f"MATCH (n:{label} {{snapshot_id:$id}}) RETURN count(n)", {"id": snapshot.id}
@@ -179,6 +204,7 @@ class GraphRepository:
                 ("HAS_CALLSITE", len(snapshot.callsites)),
                 ("CALLS", len(snapshot.calls)),
                 ("HANDLED_BY", len(snapshot.endpoints)),
+                ("ACCESSES", len(snapshot.resources)),
             ):
                 actual = self.read(
                     f"MATCH (a)-[r:{relation}]->(b) WHERE b.snapshot_id=$id RETURN count(r)",

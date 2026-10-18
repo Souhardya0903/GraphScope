@@ -51,3 +51,33 @@ TLS is supported with certificate validation when the database endpoint supports
 An unencrypted connection must not be treated as production-ready for private source.
 The Python dependency snapshot records versions verified on Windows/Python 3.15;
 it is not a portable, artifact-hashed lockfile or a claim of testing every supported version.
+
+
+## Expanded analysis engine
+
+`graphscope.analysis` exposes offline repository maps, revision/worktree/index change
+comparison, multi-target before/after impact, confirmed hypothetical proposals, literal
+resource/test links and explicit service workspaces. It reuses Snapshot/EvidenceEdge
+contracts and Python ingestion; a parsing-only Node/TypeScript adapter emits the same
+contracts. TypeScript is pinned to the compiler API release line. No repository code,
+tsconfig plugins or Git checkout/filter/hook operations are executed.
+
+ResourceAccess nodes and ACCESSES relationships are persisted in individual FalkorDB
+snapshots with JSON metadata. The extended CLI includes tests; legacy snapshots keep
+explicit coverage limits. Workspace composition is an in-memory projection, not a
+single persisted repository snapshot. Cross-service edges retain both sources of
+evidence and are inferred from explicit origin/route or broker/topic contracts.
+
+Git comparisons extract validated blobs into disposable directories under ignored
+reports/analysis-tmp. Historical snapshots do not borrow current-checkout snippets.
+Reports carry file hashes, changed line ranges and both old/new dependency paths.
+A changed SQL schema can seed literal table users; unmapped config/schema edits are
+review gaps. Renames are conservatively treated as old/new identities.
+
+Optional natural-language suggestions send only a bounded symbol catalog and change
+description. Returned IDs must exist and need a separate confirmation step. They are
+not findings and cannot claim exhaustive interpretation of a proposed change.
+
+Limits and unsupported constructs are documented in ANALYSIS_GUIDE.md. All expanded
+analysis reports remain partial. Incremental indexing and runtime validation remain
+future work; frontend/backend delivery is intentionally deferred.

@@ -197,8 +197,66 @@ class GraphQueries(GraphRepository):
 
     def find_related_tests(self, snapshot_id, function_ids):
         self.ready(snapshot_id)
-        return {"supported": False, "reason": "Static test classification is not yet ingested"}
+        metadata = self.snapshot_metadata(snapshot_id)
+        if not metadata.get("analysis_version") or not metadata.get("tests_included"):
+            return {
+                "supported": False,
+                "reason": "Index using graphscope.analysis map to include static test links",
+            }
+        if len(function_ids) > 100:
+            raise ValueError("Select at most 100 functions")
+        rows = self.read(
+            "MATCH (f:Function {snapshot_id:$sid}) WHERE f.id IN $ids "
+            "AND (f.name STARTS WITH 'test_' OR f.file_path CONTAINS '/tests/' OR f.file_path STARTS WITH 'tests/') "
+            "RETURN f.id,f.qualified_name,f.file_path,f.start_line LIMIT 101",
+            {"sid": snapshot_id, "ids": list(function_ids)},
+        )
+        return {
+            "supported": True,
+            "tests": [
+                {"id": i, "name": n, "file_path": p, "line": line} for i, n, p, line in rows[:100]
+            ],
+            "truncated": len(rows) > 100,
+            "caveat": "Static caller links only; not runtime coverage or test results",
+        }
 
     def trace_resource_consumers(self, snapshot_id, resource_id):
         self.ready(snapshot_id)
-        return {"supported": False, "reason": "Explicit resource declarations are not yet ingested"}
+        if not self.snapshot_metadata(snapshot_id).get("analysis_version"):
+            return {
+                "supported": False,
+                "reason": "Index using graphscope.analysis map for literal resource analysis",
+            }
+        if len(resource_id) > 2048:
+            raise ValueError("Resource identifier too long")
+        kind, _, value = resource_id.partition(":")
+        rows = self.read(
+            "MATCH (r:ResourceAccess {snapshot_id:$sid}) WHERE $query='' OR r.id=$query OR (r.kind=$kind AND r.value=$value) "
+            "RETURN r.id,r.owner_id,r.kind,r.operation,r.value,r.file_path,r.line,r.confidence LIMIT 101",
+            {"sid": snapshot_id, "query": resource_id, "kind": kind, "value": value},
+        )
+        return {
+            "supported": True,
+            "accesses": [
+                {
+                    "id": i,
+                    "owner_id": o,
+                    "kind": k,
+                    "operation": op,
+                    "value": v,
+                    "file_path": p,
+                    "line": line,
+                    "confidence": c,
+                }
+                for i, o, k, op, v, p, line, c in rows[:100]
+            ],
+            "truncated": len(rows) > 100,
+            "caveat": "Literal resource conventions; identities are repository-local and may be inferred",
+        }
+
+    def snapshot_metadata(self, snapshot_id):
+        rows = self.read(
+            "MATCH (s:RepositorySnapshot {id:$sid,status:'ready'}) RETURN s.metadata",
+            {"sid": snapshot_id},
+        )
+        return json.loads(rows[0][0] or "{}") if rows else {}

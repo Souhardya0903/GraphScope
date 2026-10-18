@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "services": [
+    {"id": "stock", "root": "stock", "base_url": "https://stock.example", "message_broker": "demo-orders"},
+    {"id": "client", "root": "client", "base_url": "https://client.example"},
+    {"id": "worker", "root": "worker", "base_url": "https://worker.example", "message_broker": "demo-orders"}
+  ]
+}

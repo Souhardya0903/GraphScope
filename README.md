@@ -9,6 +9,21 @@ are implemented. Stage 3 adds cloud graph persistence and deterministic dependen
 queries. Stage 4 adds bounded investigation tools, structured reports, Ollama Cloud, Gemini and OpenAI
 adapter, and a local tool-loop test mode. The API and UI remain pending.
 
+## Repository changes and cross-service impact
+
+The expanded analysis CLI supports Git worktree/staged/revision comparisons,
+before/after multi-target blast radius, confirmed proposed changes, literal resources,
+static test links, and manifest-driven Python/TypeScript service workspaces.
+See [ANALYSIS_GUIDE.md](ANALYSIS_GUIDE.md) for commands, supported subsets and limits.
+Backend/frontend implementation remains deferred.
+
+```powershell
+.\.venv\Scripts\python.exe -m graphscope.analysis changes . --base HEAD --head worktree --output reports/change-impact.json
+```
+
+For JavaScript/TypeScript parsing only: `npm ci --prefix tools/javascript --ignore-scripts`.
+No model calls or FalkorDB writes occur unless explicitly selected.
+
 ## Layout
 
 ```text

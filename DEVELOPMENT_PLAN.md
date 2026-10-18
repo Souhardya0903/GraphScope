@@ -263,3 +263,31 @@ local tool-loop mode returned the expected two commerce endpoints. Live Ollama C
   .\.venv\Scripts\pytest
   ```
   *Expected Output:* Complete test suite passes with 100% green status.
+
+
+## Expanded analysis roadmap (phases 1–7)
+
+The original numbered stages describe the narrower CLI/backend/UI delivery plan.
+The subsequent analysis phases expand the engine and do not imply that universal
+language/framework coverage is complete. Backend/frontend work is currently deferred.
+
+Implemented supported subsets now include:
+
+1. Python method definitions, explicit class method/single-base lookup, src layout,
+   repository revision/dirty metadata and per-file hashes.
+2. Working-tree, index and committed-revision comparisons with changed-line mapping.
+3. Before/after multi-target impact, preserving removed functions and old caller paths.
+4. Description-to-candidate suggestions (lexical or optional provider) with explicit
+   separate target confirmation for hypothetical impact.
+5. Literal HTTP/Redis/SQL/environment/message accesses, simple SQL schema matching,
+   and static caller-based test linking.
+6. Explicit service manifests linking HTTP origins/methods/routes and broker/topics.
+7. Versioned multi-repository workspaces with Python and JavaScript/TypeScript adapters;
+   automatic one-service diff impact through the combined workspace.
+
+Remaining coverage includes dynamic instance dispatch/multiple inheritance, arbitrary
+frameworks/decorators/ORMs, automatic deployment/OpenAPI discovery, broader test framework
+semantics, more languages, and JavaScript class/re-export/path-alias resolution.
+See ANALYSIS_GUIDE.md for exact capabilities, verification commands and limits.
+
+Expanded analysis verification: 88 local tests passed with cloud integration enabled; Ruff passed. New model-assisted proposal tests use mocked providers.

@@ -49,8 +49,12 @@ def binding(module, text):
     if len(parts) == 1:
         return module.imports.get(first, (module.name, first))
     imported = module.imports.get(first)
-    if imported and imported[1] is None and len(parts) == 2:
-        return imported[0], parts[1]
+    if imported and imported[1] is None:
+        return imported[0], ".".join(parts[1:])
+    if imported and imported[1] is not None:
+        return imported[0], ".".join([imported[1], *parts[1:]])
+    if first in module.class_bases:
+        return module.name, ".".join(parts)
     return None
 
 
@@ -65,7 +69,50 @@ def resolve(modules, snapshot):
                 and not node.decorator_list
             ):
                 symbols[(module.name, node.name)] = module.functions[node.lineno].id
+    for module in modules.values():
+        for line, function in module.functions.items():
+            cls = module.method_classes.get(function.id)
+            node = module.definitions[line]
+            decorators = {ast.unparse(d) for d in node.decorator_list}
+            if (
+                cls
+                and module.bindings[cls] == 1
+                and decorators <= {"staticmethod", "classmethod"}
+                and sum(
+                    f.name == function.name and module.method_classes.get(f.id) == cls
+                    for f in module.functions.values()
+                )
+                == 1
+            ):
+                symbols[(module.name, f"{cls}.{function.name}")] = function.id
     owners = {f.id: module for module in modules.values() for f in module.functions.values()}
+    # Resolve explicit Class.method lookups through single, statically bound bases.
+    # self/super/instance calls remain unresolved because runtime overrides may differ.
+    for _ in range(len(modules) + sum(len(m.class_bases) for m in modules.values())):
+        added = False
+        for module in modules.values():
+            for cls, bases in module.class_bases.items():
+                if len(bases) != 1 or module.bindings[cls] != 1:
+                    continue
+                base = binding(module, bases[0])
+                if base is None:
+                    continue
+                base_module, base_name = base
+                for (owner_module, member), target in list(symbols.items()):
+                    if owner_module == base_module and member.startswith(base_name + "."):
+                        inherited = (module.name, cls + member[len(base_name) :])
+                        if inherited not in symbols:
+                            # A decorated/ambiguous override blocks inheritance too.
+                            method = member[len(base_name) + 1 :]
+                            if any(
+                                module.method_classes.get(f.id) == cls and f.name == method
+                                for f in module.functions.values()
+                            ):
+                                continue
+                            symbols[inherited] = target
+                            added = True
+        if not added:
+            break
     for call in snapshot.callsites:
         module = owners[call.owner_id]
         first = call.target_text.split(".")[0]

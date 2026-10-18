@@ -6,6 +6,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
+from graphscope.analysis.metadata import repository_metadata
+from graphscope.analysis.resources import extract_resources
 from graphscope.ingestion.discovery import discover, module_name
 from graphscope.ingestion.extractor import collect
 from graphscope.ingestion.resolver import resolve
@@ -19,10 +21,14 @@ def ingest(root: Path | str, include_tests: bool = False) -> Snapshot:
     if not root.is_dir():
         raise ValueError("Source root must be a directory")
     snapshot = Snapshot(id=uuid4().hex, root=str(root), indexed_at=datetime.now(UTC).isoformat())
+    snapshot.metadata = repository_metadata(root)
+    snapshot.metadata["tests_included"] = include_tests
     modules = {}
     for path in discover(root, include_tests):
         relative = path.relative_to(root)
-        name, module = relative.as_posix(), module_name(relative)
+        name = relative.as_posix()
+        module_path = Path(*relative.parts[1:]) if relative.parts[0] == "src" else relative
+        module = module_name(module_path)
         try:
             source = path.read_bytes()
         except OSError as error:
@@ -52,4 +58,5 @@ def ingest(root: Path | str, include_tests: bool = False) -> Snapshot:
         modules[module] = collect(tree, module, name, snapshot, path.name == "__init__.py")
     resolve(modules, snapshot)
     extract_routes(modules, snapshot)
+    extract_resources(modules, snapshot)
     return snapshot

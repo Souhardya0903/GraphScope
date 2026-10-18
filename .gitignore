@@ -230,7 +230,7 @@ __marimo__/
 .agents/
 .superpowers/
 
-# Frontend
+# Frontend and parser dependency installations
 node_modules/
 frontend/node_modules/
 frontend/dist/

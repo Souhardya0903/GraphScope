@@ -63,6 +63,7 @@ class EvidenceEdge(Contract):
     file_path: str
     line: int
     rule: str = "explicit-python-binding-v1"
+    confidence: Literal["explicit", "inferred"] = "explicit"
 
 
 class EndpointNode(Contract):
@@ -80,7 +81,9 @@ class Snapshot(Contract):
     id: str
     root: str
     indexed_at: str
-    extractor_version: str = "0.2.1"
+    extractor_version: str = "0.3.0"
+    metadata: dict = Field(default_factory=dict)
+    resources: list["ResourceAccess"] = Field(default_factory=list)
     status: Literal["extracted"] = "extracted"
     files: list[FileNode] = Field(default_factory=list)
     functions: list[FunctionNode] = Field(default_factory=list)
@@ -88,6 +91,20 @@ class Snapshot(Contract):
     calls: list[EvidenceEdge] = Field(default_factory=list)
     endpoints: list[EndpointNode] = Field(default_factory=list)
     gaps: list[AnalysisGap] = Field(default_factory=list)
+
+
+class ResourceAccess(Contract):
+    id: str
+    snapshot_id: str
+    owner_id: str
+    kind: Literal["http", "redis", "sql", "environment", "message"]
+    operation: str
+    value: str | None = None
+    method: str | None = None
+    file_path: str
+    line: int
+    rule: str
+    confidence: Literal["explicit", "inferred"] = "inferred"
 
 
 class ImpactReport(Contract):

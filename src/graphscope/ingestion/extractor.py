@@ -61,6 +61,9 @@ class ParsedModule:
     imports: dict[str, tuple[str, str | None]] = field(default_factory=dict)
     blocked: set[str] = field(default_factory=set)
     wildcard: bool = False
+    method_classes: dict[str, str] = field(default_factory=dict)
+    class_bases: dict[str, list[str]] = field(default_factory=dict)
+    definitions: dict[int, ast.AST] = field(default_factory=dict)
     function_blocks: dict[str, set[str]] = field(default_factory=dict)
 
 
@@ -68,12 +71,22 @@ def collect(tree, name, path, snapshot: Snapshot, is_package=False):
     bindings = Bindings()
     bindings.visit(tree)
     module = ParsedModule(name, path, tree, is_package, bindings.names)
-    for node in tree.body:
+    definitions = [(node, None) for node in tree.body]
+    for cls in tree.body:
+        if isinstance(cls, ast.ClassDef):
+            module.class_bases[cls.name] = [ast.unparse(b) for b in cls.bases]
+            definitions.extend(
+                (node, cls.name)
+                for node in cls.body
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            )
+    for node, class_name in definitions:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            member = f"{class_name}.{node.name}" if class_name else node.name
             function = FunctionNode(
-                id=f"{snapshot.id}:{path}:{node.name}:{node.lineno}",
+                id=f"{snapshot.id}:{path}:{member}:{node.lineno}",
                 snapshot_id=snapshot.id,
-                qualified_name=f"{name}.{node.name}".lstrip("."),
+                qualified_name=f"{name}.{member}".lstrip("."),
                 name=node.name,
                 module=name,
                 file_path=path,
@@ -85,6 +98,9 @@ def collect(tree, name, path, snapshot: Snapshot, is_package=False):
             )
             snapshot.functions.append(function)
             module.functions[node.lineno] = function
+            module.definitions[node.lineno] = node
+            if class_name:
+                module.method_classes[function.id] = class_name
             local = Bindings()
             for statement in node.body:
                 local.visit(statement)
@@ -109,7 +125,7 @@ def collect(tree, name, path, snapshot: Snapshot, is_package=False):
                 AnalysisGap(
                     path=path,
                     line=node.lineno,
-                    reason="Class bodies and method dispatch unsupported",
+                    reason="Class attributes, constructors and runtime inheritance dispatch are not fully resolved",
                 )
             )
     return module
