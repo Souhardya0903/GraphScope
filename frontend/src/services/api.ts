@@ -26,8 +26,8 @@ export async function fetchEvidence(
   snapshotId: string,
   evidenceIds: string[],
   includeSource: boolean = true
-): Promise<Record<string, EvidenceItem>> {
-  if (!evidenceIds.length) return {};
+): Promise<{ evidence: EvidenceItem[]; missing_ids: string[] }> {
+  if (!evidenceIds.length) return { evidence: [], missing_ids: [] };
   const params = new URLSearchParams({
     snapshot_id: snapshotId,
     evidence_ids: evidenceIds.join(','),
@@ -37,5 +37,17 @@ export async function fetchEvidence(
   if (!res.ok) {
     throw new Error(`Failed to fetch evidence: ${res.statusText}`);
   }
-  return res.json();
+  const data = await res.json();
+  return {
+    evidence: (data.evidence ?? []).map((item: Record<string, unknown>) => ({
+      edge_id: String(item.id ?? item.edge_id ?? ''),
+      caller_function: String(item.caller_function ?? ''),
+      callee_function: String(item.target_text ?? item.callee_function ?? ''),
+      file_path: String(item.file_path ?? ''),
+      line_number: Number(item.line ?? item.line_number ?? 1),
+      hash: String(item.content_hash ?? item.hash ?? ''),
+      source_lines: typeof item.source === 'string' ? item.source.replace(/\n$/, '').split('\n') : undefined,
+    })),
+    missing_ids: data.missing_ids ?? [],
+  };
 }

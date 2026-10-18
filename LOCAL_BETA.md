@@ -44,3 +44,21 @@ cancellation suppresses the browser result; bounded server work may finish.
 
 No repository code is executed by analysis, but static coverage is partial. See
 ANALYSIS_GUIDE.md for supported languages/frameworks and resource inference limits.
+
+
+## Snapshots and diagnostics
+
+The server logs request ID, route, status and elapsed time, never request bodies or
+provider keys. X-Request-ID is returned for troubleshooting. Snapshot listing shows
+only ready snapshots; metadata includes actual function/file/endpoint/resource counts.
+
+Stored snapshots persist until explicitly deleted. To delete one, send DELETE to
+`http://127.0.0.1:8080/api/snapshots/SNAPSHOT_ID` (add a graph query parameter only if
+you used a non-default graph). This removes its entities, relationships and metadata.
+There is no automatic retention policy in this local beta. Generated exports live
+under ignored reports/ and can be removed when no longer needed.
+
+CI runs on main/integration pushes and pull requests, using a pinned disposable
+FalkorDB container rather than cloud credentials. It installs from locks, lints,
+tests Python/frontend/browser flows and audits npm dependencies. CI does not invoke
+paid models, publish a package, deploy a public site or alter your cloud graphs.

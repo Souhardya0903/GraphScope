@@ -1,0 +1,49 @@
+name: Verify local beta
+on:
+  push:
+    branches: [main, frontend-and-backend-integration]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      falkordb:
+        image: falkordb/falkordb@sha256:b0bdcac2cbaff989e77cb0610439b7a9289e86de033ccbbd4368b66fb680ae7a
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      GRAPHSCOPE_INTEGRATION: '1'
+      FALKORDB_HOST: '127.0.0.1'
+      FALKORDB_PORT: '6379'
+      FALKORDB_SSL: 'false'
+      FALKORDB_GRAPH: graphscope_ci
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install locked environment and build dashboard
+        run: sh scripts/setup.sh
+      - name: Lint and isolated database integration tests
+        run: |
+          .venv/bin/python -m ruff check src tests examples
+          .venv/bin/python -m pytest -q
+      - name: Frontend tests and dependency audit
+        run: |
+          npm --prefix frontend test -- --maxWorkers=1
+          npm --prefix frontend audit --audit-level=moderate
+      - name: Install browser
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Browser to local beta API
+        run: npm --prefix frontend run test:e2e

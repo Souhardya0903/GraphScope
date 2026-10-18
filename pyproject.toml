@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "graphscope"
-version = "0.1.0"
+version = "0.1.0b1"
 description = "Source-backed Python dependency blast-radius investigations"
 readme = "README.md"
 requires-python = ">=3.11"

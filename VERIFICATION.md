@@ -8,14 +8,14 @@ parse source without executing it, render potential impact/evidence/gaps and exp
 | Browser form to API | Two Playwright tests against the single-origin local beta server serving production assets |
 | API to source analysis | Local API tests plus Git, parser, change and workspace regression fixtures |
 | Analysis to FalkorDB | Disposable graph persistence/traversal/API integration tests |
-| Report to UI | 21 frontend tests and real-browser endpoint/evidence/proposal/export assertions |
-| Python regression | 102 local tests passed with cloud integration enabled (includes retained local Stage 4/analysis tests not committed earlier) |
+| Report to UI | 22 frontend tests and real-browser endpoint/evidence/proposal/export assertions |
+| Python regression | 106 local tests passed with cloud integration enabled (includes retained local Stage 4/analysis tests not committed earlier) |
 
 The first E2E run exposed cold development-bundle timing. E2E now builds the frontend
 and uses the production preview, matching release assets. Both browser tests passed.
 No live model calls are required. Model transport failure behavior is mocked.
 One upstream Starlette/httpx deprecation warning and existing React test-act warnings
-remain. Dependency advisories are addressed in release task 4.
+remain. Patched tooling reports zero npm audit vulnerabilities. Local API path/origin checks and single-origin launcher browser checks passed.
 
 Reproduce from the checkout:
 
