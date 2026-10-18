@@ -63,30 +63,28 @@ Use `.venv/bin/python` on Linux/macOS. Repeat `--allow-root` for additional root
 Bundled project examples are allowed by default. Keep the server terminal running;
 use a hard browser refresh after rebuilding the frontend.
 
-## First demonstration
+## Analyze your repository
 
-Use these inputs in the dashboard:
+Start the server with your repository directory allowed, then open the dashboard:
 
-| Field | Value |
-|---|---|
-| Analysis mode | Selected targets |
-| Repository path | `examples/commerce` |
-| Qualified targets | `inventory.validate_stock` |
-| Resource identity | Empty |
+1. Choose an analysis mode and enter your repository's absolute path.
+2. For target impact, enter an exact qualified function name from its map, or a
+   literal resource identity. Use one selector at a time.
+3. For a proposed change, describe the change, review candidate functions, and
+   confirm the targets before calculating impact.
+4. For Git changes, choose the base revision and compare against the worktree,
+   staging index, or another revision.
+5. For multiple services, provide a workspace JSON manifest. Inspect its map or
+   select a service and target; alternatively select one changed service.
 
-Click **Analyze repository**. Potentially affected endpoints include **POST `/orders`**
-and **POST `/reservations`**. Select `orders.place_order` from the function list to
-inspect dependency evidence. Endpoint graph edges use declared handlers rather than
-layout guesses.
+Workspace manifests have version `1` and a `services` array. Each service declares
+an `id`, local `root`, and HTTP `base_url`. Optional `revision` pins source to a Git
+ref or index; optional `message_broker` identifies a shared messaging namespace.
+Service paths resolve relative to the manifest and must be under allowed roots.
 
-For a multi-service example, choose **Service workspace** and enter
-`examples/workspace/workspace.json`. Leave service/target fields empty for the map.
-Then use service `stock` and target `app.validate_stock` for cross-service impact.
-HTTP and message links are inferred from explicit workspace contracts, not observed traffic.
-
-See [Testing each analysis mode](#testing-each-analysis-mode) below for a repeatable
-checklist. Examples are bundled in Git; locally cloned third-party repositories and
-generated reports are not.
+Select graph nodes for dependency evidence, review coverage limitations, and export
+JSON when you need the full report. Cross-service links are inferred contracts,
+not observations of runtime traffic.
 
 ## Optional LLM suggestions
 
@@ -119,25 +117,21 @@ the reported dependencies; model text cannot supply dependency edges.
 
 ## CLI
 
-PowerShell examples, from the checkout root:
+Use the virtual environment's Python executable. The following syntax uses
+placeholders: replace `REPOSITORY_PATH`, `QUALIFIED_FUNCTION`, and `MANIFEST_PATH`
+with your own values.
 
-```powershell
-.\.venv\Scripts\python.exe -m graphscope.analysis map examples/commerce --output reports/commerce-map.json
-.\.venv\Scripts\python.exe -m graphscope.analysis impact examples/commerce --target inventory.validate_stock --output reports/commerce-impact.json
-.\.venv\Scripts\python.exe -m graphscope.analysis changes examples/commerce --base HEAD --head worktree --output reports/commerce-changes.json
-.\.venv\Scripts\python.exe -m graphscope.analysis workspace examples/workspace/workspace.json --output reports/workspace-map.json
+```text
+python -m graphscope.analysis map REPOSITORY_PATH --output reports/map.json
+python -m graphscope.analysis impact REPOSITORY_PATH --target QUALIFIED_FUNCTION
+python -m graphscope.analysis changes REPOSITORY_PATH --base HEAD --head worktree
+python -m graphscope.analysis propose REPOSITORY_PATH "CHANGE DESCRIPTION"
+python -m graphscope.analysis workspace MANIFEST_PATH
 ```
 
-Use `.venv/bin/python` on Linux/macOS. Additional examples:
-
-```powershell
-.\.venv\Scripts\python.exe -m graphscope.analysis propose examples/commerce "Change validate_stock" --target inventory.validate_stock --confirm
-.\.venv\Scripts\python.exe -m graphscope.analysis impact examples/workspace/stock --resource redis:inventory
-.\.venv\Scripts\python.exe -m graphscope.analysis workspace examples/workspace/workspace.json --service stock --target app.validate_stock
-```
-
-Run `python -m graphscope.analysis MODE --help` for each command's options. For
-Git comparisons, use `--head index` for staged edits or a commit/ref for another revision.
+Run `python -m graphscope.analysis MODE --help` for command options. A confirmed
+proposal requires explicit `--target` and `--confirm`. Git comparisons accept
+`--head index` for staged edits or a commit/ref for another revision.
 
 ## Optional FalkorDB snapshots and investigations
 
@@ -152,10 +146,10 @@ Configure `.env` for your local instance or FalkorDB Cloud, then verify connecti
 
 ```powershell
 .\.venv\Scripts\python.exe scripts/check_falkordb.py
-.\.venv\Scripts\python.exe -m graphscope.analysis map examples/commerce --store --output reports/commerce-stored.json
 ```
 
-The check uses a disposable graph. The stored map includes a snapshot `id` that can
+The check uses a disposable graph. To persist a repository map, add `--store` to
+the analysis CLI map command. The stored map includes a snapshot `id` that can
 be selected in the dashboard or passed to `python -m graphscope.investigation`.
 Stored investigation supports direct deterministic analysis and optional model providers.
 Source excerpts in that workflow are opt-in and checked against indexed hashes.
@@ -237,32 +231,6 @@ uses `tools/javascript/`. Offline reports use the extracted graph directly.
 `graph/` and `investigation/` support stored-snapshot investigations. Setup scripts
 install these components; tests validate their contracts and browser workflows.
 
-## Testing each analysis mode
-
-Run the server from the checkout root, open the dashboard, and use the bundled
-examples. Paths below are relative to the checkout, so another developer does not
-need the original author's filesystem paths or ignored cloned repositories.
-
-| Mode | Inputs | Expected result |
-|---|---|---|
-| Repository mapping | Root `examples/commerce` | Nonzero function counts, resolved dependencies, endpoints, and inspectable limitations. |
-| Selected targets | Root `examples/commerce`; target `inventory.validate_stock`; resource empty | POST `/orders` and POST `/reservations` are potentially affected; GET `/products` is not. Select `orders.place_order` for evidence. |
-| Resource impact | Selected targets mode; root `examples/workspace/stock`; targets empty; resource `redis:inventory` | `app.read_stock` and the stock route are identified through the inferred resource access. |
-| Proposed change | Root `examples/commerce`; description `Change validate_stock to reject zero quantity` | Review the candidate, select it, check confirmation, and run again to obtain impact. Model providers additionally require catalog-sharing consent. |
-| Git changes | Root `examples/commerce`; base `HEAD`; compare `worktree` | Add a temporary comment inside `validate_stock` in `examples/commerce/inventory.py` and save. Changed-symbol and before/after results appear. Remove only that comment afterward. |
-| Workspace map | Manifest `examples/workspace/workspace.json`; service/target/changed-service empty | Three service cards, aggregate totals, inferred contract evidence, graph, and working service filtering. |
-| Workspace target impact | Same manifest; service `stock`; target `app.validate_stock`; changed-service empty | Potential stock-route and client impact through an inferred HTTP contract. |
-| Workspace Git impact | Same manifest; changed-service `stock`; service and target empty; HEAD versus worktree | Temporarily edit inside `validate_stock` in `examples/workspace/stock/app.py`; inspect before/after impact and undo that temporary edit. |
-
-Check JSON export, node selection, long-name tooltips, zoom/pan, Fit graph, and a
-narrow browser window. Invalid paths and nonexistent targets should produce visible
-errors. Changing inputs should clear previous results. Inspect both affected scope
-and Whole repository in the coverage panel. Model failures should offer an offline fallback.
-
-For a bug report, include the commit (`git rev-parse --short HEAD`), OS, Python/Node
-versions, mode, exact inputs, reproduction steps, expected/actual result, and screenshot
-or sanitized error. Do not share `.env`, keys, passwords, or private source.
-
 ## Troubleshooting
 
 | Symptom | Action |
@@ -275,9 +243,6 @@ or sanitized error. Do not share `.env`, keys, passwords, or private source.
 | No Git changes found | Save the edit, use `worktree`, and inspect `git diff`. |
 | Model catalog too large | Use a smaller source root, offline matching, or exact targets. |
 | Model credentials changed | Restart the server; credentials are loaded on startup. |
-
-Fixture-specific details remain in [commerce](examples/commerce/README.md) and
-[workspace](examples/workspace/README.md). This README is the main setup and testing reference.
 
 ## License
 
