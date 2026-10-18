@@ -27,7 +27,7 @@ export default function CommandBar({
       <div className="brand-section">
         <div className="brand-indicator" />
         <h1 className="brand-title">GraphScope</h1>
-        <span className="brand-badge">Stage 6</span>
+        <span className="brand-badge">Gemini</span>
       </div>
 
       <div className="repo-controls">
