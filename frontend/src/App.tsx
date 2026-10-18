@@ -6,6 +6,7 @@ import TelemetryHUD from './components/TelemetryHUD';
 import GraphCanvas from './components/GraphCanvas';
 import CodeInspector from './components/CodeInspector';
 import AnalysisGaps from './components/AnalysisGaps';
+import ErrorBoundary from './components/ErrorBoundary';
 import { useInvestigationStream } from './hooks/useInvestigationStream';
 import { fetchSnapshots, fetchEvidence } from './services/api';
 import { SnapshotItem, IndexResponse, EvidenceItem } from './types/api';
@@ -68,8 +69,13 @@ export default function App() {
     if (!activeSnapshotId) return;
 
     try {
-      const evidenceMap = await fetchEvidence(activeSnapshotId, [nodeId], true);
-      const ev = evidenceMap[nodeId] || null;
+      const evidenceRes: any = await fetchEvidence(activeSnapshotId, [nodeId], true);
+      let ev: EvidenceItem | null = null;
+      if (Array.isArray(evidenceRes?.evidence)) {
+        ev = evidenceRes.evidence[0] || null;
+      } else if (evidenceRes && typeof evidenceRes === 'object') {
+        ev = evidenceRes[nodeId] || null;
+      }
       setActiveEvidence(ev);
     } catch {
       setActiveEvidence(null);
@@ -80,13 +86,13 @@ export default function App() {
   const handleExportMarkdown = () => {
     if (!report) return;
     const md = generateMarkdownReport(report);
-    downloadFile(md, `impact-report-${report.target || 'investigation'}.md`, 'text/markdown');
+    downloadFile(md, `impact-report-${report.target_id || (report as any).target || 'investigation'}.md`, 'text/markdown');
   };
 
   const handleExportJSON = () => {
     if (!report) return;
     const jsonStr = generateJSONReport(report);
-    downloadFile(jsonStr, `impact-report-${report.target || 'investigation'}.json`, 'application/json');
+    downloadFile(jsonStr, `impact-report-${report.target_id || (report as any).target || 'investigation'}.json`, 'application/json');
   };
 
   return (
@@ -135,22 +141,28 @@ export default function App() {
 
       <div className="workspace-split">
         <section className="canvas-pane">
-          <GraphCanvas
-            evidence={graphEvidence || report?.graph_evidence || null}
-            targetSymbol={report?.target || null}
-            selectedNodeId={selectedNodeId}
-            onSelectNode={handleSelectNode}
-          />
+          <ErrorBoundary fallbackTitle="Graph Canvas Render Error">
+            <GraphCanvas
+              evidence={graphEvidence || report?.graph_evidence || null}
+              targetSymbol={report?.target_id || (report as any)?.target || null}
+              selectedNodeId={selectedNodeId}
+              onSelectNode={handleSelectNode}
+            />
+          </ErrorBoundary>
         </section>
 
         <aside className="inspector-pane">
           <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-            <CodeInspector
-              selectedSymbol={selectedNodeId}
-              evidence={activeEvidence}
-            />
+            <ErrorBoundary fallbackTitle="Code Inspector Render Error">
+              <CodeInspector
+                selectedSymbol={selectedNodeId}
+                evidence={activeEvidence}
+              />
+            </ErrorBoundary>
           </div>
-          <AnalysisGaps gaps={report?.analysis_gaps || null} />
+          <ErrorBoundary fallbackTitle="Analysis Gaps Render Error">
+            <AnalysisGaps gaps={report?.analysis_gaps || null} />
+          </ErrorBoundary>
         </aside>
       </div>
 

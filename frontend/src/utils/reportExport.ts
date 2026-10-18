@@ -3,7 +3,8 @@ import { ImpactReport } from '../types/api';
 export function generateMarkdownReport(report: ImpactReport): string {
   const lines: string[] = [];
 
-  lines.push(`# Impact Report: ${report.target}`);
+  const targetName = report.target || (report as any).target_id || 'Investigation Target';
+  lines.push(`# Impact Report: ${targetName}`);
   lines.push('');
   lines.push(`**Snapshot ID:** \`${report.snapshot_id}\``);
   lines.push(`**Question:** ${report.question}`);
@@ -15,7 +16,14 @@ export function generateMarkdownReport(report: ImpactReport): string {
   lines.push('## Potentially Affected HTTP Endpoints');
   const endpoints = report.affected_endpoints || report.graph_evidence?.potentially_affected_endpoints || [];
   if (endpoints.length > 0) {
-    endpoints.forEach((ep) => lines.push(`- \`${ep}\``));
+    endpoints.forEach((ep) => {
+      if (typeof ep === 'string') {
+        lines.push(`- \`${ep}\``);
+      } else if (ep && typeof ep === 'object') {
+        const o = ep as any;
+        lines.push(`- \`${o.method || 'ROUTE'} ${o.path || o.id}\``);
+      }
+    });
   } else {
     lines.push('*No public HTTP endpoints detected in direct caller paths.*');
   }
@@ -24,8 +32,18 @@ export function generateMarkdownReport(report: ImpactReport): string {
   lines.push('## Blast Radius Caller Paths');
   const paths = report.graph_evidence?.paths || [];
   if (paths.length > 0) {
-    paths.forEach((p, idx) => {
-      lines.push(`${idx + 1}. ${p.join(' ➔ ')}`);
+    paths.forEach((p: any, idx) => {
+      let chain: string[] = [];
+      if (Array.isArray(p)) {
+        chain = p.map(String);
+      } else if (p && typeof p === 'object' && Array.isArray(p.functions)) {
+        chain = p.functions.map(String);
+      } else if (p && typeof p === 'object' && Array.isArray(p.function_ids)) {
+        chain = p.function_ids.map(String);
+      }
+      if (chain.length > 0) {
+        lines.push(`${idx + 1}. ${chain.join(' ➔ ')}`);
+      }
     });
   } else {
     lines.push('*No caller paths discovered.*');
@@ -36,7 +54,9 @@ export function generateMarkdownReport(report: ImpactReport): string {
   const gaps = report.analysis_gaps?.unresolved_calls || [];
   if (gaps.length > 0) {
     gaps.forEach((gap: any) => {
-      lines.push(`- **${gap.symbol || 'Unknown dynamic call'}** at \`${gap.file || 'unknown'}:${gap.line || '?'}\``);
+      const sym = gap.target_text || gap.symbol || 'Unknown dynamic call';
+      const loc = `${gap.file_path || gap.file || 'unknown'}:${gap.line || '?'}`;
+      lines.push(`- **${sym}** at \`${loc}\``);
     });
   } else {
     lines.push('*No unresolved calls or dynamic dispatch blind spots detected.*');

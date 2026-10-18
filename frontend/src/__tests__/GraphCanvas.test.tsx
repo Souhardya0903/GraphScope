@@ -23,4 +23,32 @@ describe('buildGraphData', () => {
     expect(nodes[0].isTarget).toBe(true);
     expect(edges.length).toBe(0);
   });
+
+  it('handles real backend payload with object caller_paths and endpoint dicts', () => {
+    const realBackendEvidence = {
+      paths: [
+        {
+          functions: ['orders.checkout', 'cart.process', 'inventory.validate_stock'],
+          function_ids: ['fn_1', 'fn_2', 'fn_3'],
+          evidence_ids: ['ev_1', 'ev_2'],
+        },
+      ],
+      potentially_affected_endpoints: [
+        {
+          id: 'ep_1',
+          method: 'POST',
+          path: '/api/checkout',
+          handler_id: 'fn_1',
+        },
+      ],
+    };
+    const { nodes, edges } = buildGraphData(realBackendEvidence as any, 'inventory.validate_stock');
+    expect(nodes.length).toBeGreaterThan(1);
+    expect(edges.length).toBeGreaterThan(0);
+    const epNode = nodes.find((n) => n.isEndpoint);
+    expect(epNode).toBeDefined();
+    expect(typeof epNode?.id).toBe('string');
+    expect(typeof epNode?.label).toBe('string');
+    expect(epNode?.label).toContain('/api/checkout');
+  });
 });

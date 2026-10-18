@@ -20,8 +20,14 @@ export default function CodeInspector({ selectedSymbol, evidence }: CodeInspecto
     );
   }
 
-  const lines = evidence?.source_lines || [];
-  const targetLine = evidence?.line_number || 1;
+  let lines: string[] = [];
+  if (Array.isArray(evidence?.source_lines)) {
+    lines = evidence.source_lines;
+  } else if (typeof (evidence as any)?.source === 'string') {
+    lines = (evidence as any).source.split('\n');
+  }
+
+  const targetLine = evidence?.line_number || (evidence as any)?.line || 1;
 
   return (
     <div className="inspector-panel">

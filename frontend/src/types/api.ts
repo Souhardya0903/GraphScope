@@ -48,13 +48,15 @@ export interface AnalysisGapsPayload {
 
 export interface ImpactReport {
   snapshot_id: string;
-  target: string;
+  target?: string;
+  target_id?: string;
   question: string;
-  summary: string;
+  summary?: string;
   graph_evidence: GraphEvidencePayload;
   analysis_gaps: AnalysisGapsPayload;
   affected_endpoints?: string[];
   recommendations?: string[];
+  [key: string]: unknown;
 }
 
 export interface EvidenceItem {

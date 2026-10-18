@@ -25,35 +25,49 @@ export function buildGraphData(
   evidence: GraphEvidencePayload | null,
   targetSymbol: string | null
 ): GraphData {
-  const nodesMap = new Map<string, { isTarget: boolean; isEndpoint: boolean; layer: number }>();
+  const nodesMap = new Map<string, { label: string; isTarget: boolean; isEndpoint: boolean; layer: number }>();
   const edgeSet = new Set<string>();
   const edges: GraphEdge[] = [];
 
-  const effectiveTarget = targetSymbol || 'target';
+  const effectiveTarget = String(targetSymbol || 'target');
 
   // Always seed target node
-  nodesMap.set(effectiveTarget, { isTarget: true, isEndpoint: false, layer: 0 });
+  const targetLabel = effectiveTarget.includes('.') ? effectiveTarget.split('.').pop()! : effectiveTarget;
+  nodesMap.set(effectiveTarget, { label: targetLabel, isTarget: true, isEndpoint: false, layer: 0 });
 
   if (evidence?.paths) {
-    for (const path of evidence.paths) {
-      if (!Array.isArray(path) || path.length === 0) continue;
+    for (const rawPath of evidence.paths) {
+      // Path can be string[] or { functions: string[] } or { function_ids: string[] }
+      let functionList: string[] = [];
+      if (Array.isArray(rawPath)) {
+        functionList = rawPath.map(String);
+      } else if (rawPath && typeof rawPath === 'object') {
+        const obj = rawPath as Record<string, unknown>;
+        if (Array.isArray(obj.functions)) {
+          functionList = obj.functions.map(String);
+        } else if (Array.isArray(obj.function_ids)) {
+          functionList = obj.function_ids.map(String);
+        }
+      }
 
-      // Paths are typically caller -> ... -> target or target -> ...
-      for (let i = 0; i < path.length; i++) {
-        const symbol = path[i];
+      if (functionList.length === 0) continue;
+
+      for (let i = 0; i < functionList.length; i++) {
+        const symbol = String(functionList[i]);
         const isTarget = symbol === effectiveTarget;
-        const layer = path.length - 1 - i; // distance from target
+        const layer = functionList.length - 1 - i;
+        const label = symbol.includes('.') ? symbol.split('.').pop()! : symbol;
 
         if (!nodesMap.has(symbol)) {
-          nodesMap.set(symbol, { isTarget, isEndpoint: false, layer });
+          nodesMap.set(symbol, { label, isTarget, isEndpoint: false, layer });
         } else {
           const current = nodesMap.get(symbol)!;
           if (layer > current.layer) current.layer = layer;
         }
 
-        if (i < path.length - 1) {
-          const source = path[i];
-          const target = path[i + 1];
+        if (i < functionList.length - 1) {
+          const source = String(functionList[i]);
+          const target = String(functionList[i + 1]);
           const edgeId = `${source}->${target}`;
           if (!edgeSet.has(edgeId)) {
             edgeSet.add(edgeId);
@@ -69,22 +83,40 @@ export function buildGraphData(
   const endpointLayer = maxCallerLayer + 1;
 
   if (evidence?.potentially_affected_endpoints) {
-    for (const ep of evidence.potentially_affected_endpoints) {
-      if (!nodesMap.has(ep)) {
-        nodesMap.set(ep, { isTarget: false, isEndpoint: true, layer: endpointLayer });
+    for (const rawEp of evidence.potentially_affected_endpoints) {
+      let epId: string;
+      let epLabel: string;
+
+      if (typeof rawEp === 'string') {
+        epId = rawEp;
+        epLabel = rawEp;
+      } else if (rawEp && typeof rawEp === 'object') {
+        const epObj = rawEp as Record<string, unknown>;
+        const method = epObj.method ? String(epObj.method) : 'ROUTE';
+        const path = epObj.path ? String(epObj.path) : (epObj.id ? String(epObj.id) : 'endpoint');
+        epId = `${method} ${path}`;
+        epLabel = `${method} ${path}`;
+      } else {
+        epId = String(rawEp);
+        epLabel = String(rawEp);
       }
-      // Connect first caller or target to endpoint
-      const callerCandidates = Array.from(nodesMap.keys()).filter((k) => k !== ep && !nodesMap.get(k)?.isEndpoint);
+
+      if (!nodesMap.has(epId)) {
+        nodesMap.set(epId, { label: epLabel, isTarget: false, isEndpoint: true, layer: endpointLayer });
+      }
+
+      // Connect root callers to endpoint
+      const callerCandidates = Array.from(nodesMap.keys()).filter((k) => k !== epId && !nodesMap.get(k)?.isEndpoint);
       const rootCaller = callerCandidates.find((k) => nodesMap.get(k)?.layer === maxCallerLayer) || effectiveTarget;
-      const edgeId = `${ep}->${rootCaller}`;
+      const edgeId = `${epId}->${rootCaller}`;
       if (!edgeSet.has(edgeId)) {
         edgeSet.add(edgeId);
-        edges.push({ id: edgeId, source: ep, target: rootCaller });
+        edges.push({ id: edgeId, source: epId, target: rootCaller });
       }
     }
   }
 
-  // Position nodes by layer (horizontal DAG: Endpoints (left) -> Callers (middle) -> Target (right))
+  // Position nodes by layer
   const layersMap = new Map<number, string[]>();
   nodesMap.forEach((info, id) => {
     const list = layersMap.get(info.layer) || [];
@@ -102,13 +134,12 @@ export function buildGraphData(
 
     idsInLayer.forEach((id, idx) => {
       const info = nodesMap.get(id)!;
-      // Invert x so Endpoint is on the left, Target is on the right
       const x = 100 + (endpointLayer - layer) * layerSpacingX;
       const y = startY + idx * nodeSpacingY;
 
       nodes.push({
         id,
-        label: id.includes('.') ? id.split('.').pop()! : id,
+        label: info.label,
         isTarget: info.isTarget,
         isEndpoint: info.isEndpoint,
         x,
