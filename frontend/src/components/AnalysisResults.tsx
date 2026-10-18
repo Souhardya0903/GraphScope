@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import GraphCanvas from './GraphCanvas';
 import CoveragePanel from './CoveragePanel';
+import WorkspaceOverview from './WorkspaceOverview';
+import { workspaceReport } from '../utils/workspaceReport';
 import { GraphEvidencePayload } from '../types/api';
 
 type Data = Record<string, unknown>;
@@ -8,11 +10,13 @@ const object = (value: unknown): Data => value !== null && typeof value === 'obj
 const records = (value: unknown): Data[] => Array.isArray(value) ? value.map(object) : [];
 
 export default function AnalysisResults({ result, onCandidate }: { result: Data; onCandidate: (name: string) => void }) {
+  const [service, setService] = useState('');
   const [side, setSide] = useState<'before' | 'after'>('after');
   const [selected, setSelected] = useState<string | null>(null);
   const comparison = result.before !== undefined && result.after !== undefined;
   const wrapper = comparison ? object(result[side]) : result;
-  const report = Object.keys(object(wrapper.report)).length ? object(wrapper.report) : wrapper;
+  const workspaceMap = result.mode === 'workspace-map';
+  const report = workspaceMap ? workspaceReport(result, service) : Object.keys(object(wrapper.report)).length ? object(wrapper.report) : wrapper;
   const targets = records(report.targets);
   const paths = records(report.paths);
   const functions = records(report.affected_functions ?? report.functions);
@@ -25,7 +29,15 @@ export default function AnalysisResults({ result, onCandidate }: { result: Data;
   const allGraphPaths = paths.length
     ? paths.map(p => Array.isArray(p.function_ids) ? p.function_ids.map(id => idToName.get(String(id)) ?? String(id)) : [])
     : calls.map(c => [idToName.get(String(c.caller_id)) ?? String(c.caller_id), idToName.get(String(c.callee_id)) ?? String(c.callee_id)]);
-  const graph: GraphEvidencePayload = { paths: allGraphPaths.slice(0, 200), potentially_affected_endpoints: endpoints.map(e => ({ id: String(e.id), method: String(e.method), path: String(e.path), handler_symbol: idToName.get(String(e.handler_id)) })) };
+  const previewPaths = allGraphPaths.slice(0, 200);
+  if (workspaceMap) {
+    const linked = new Set(previewPaths.flat());
+    for (const fn of functions) {
+      if (previewPaths.length >= 200) break;
+      if (!linked.has(String(fn.qualified_name))) previewPaths.push([String(fn.qualified_name)]);
+    }
+  }
+  const graph: GraphEvidencePayload = { paths: previewPaths, potentially_affected_endpoints: endpoints.map(e => ({ id: String(e.id), method: String(e.method), path: String(e.path), handler_symbol: idToName.get(String(e.handler_id)) })) };
 
   if (result.status === 'confirmation_required' || result.status === 'clarification_required') return <div className="proposal-review" aria-label="Proposal review">
     <span className="eyebrow">{result.provider ? `${String(result.provider).toUpperCase()} SUGGESTION` : 'TARGET REVIEW'}</span>
@@ -38,6 +50,7 @@ export default function AnalysisResults({ result, onCandidate }: { result: Data;
   </div>;
 
   return <div aria-label="Analysis findings">
+    {workspaceMap && <WorkspaceOverview result={result} service={service} onService={id => { setService(id); setSelected(null); }} />}
     {comparison && <label>Snapshot side<select aria-label="Snapshot side" value={side} onChange={e => { setSide(e.target.value as 'before' | 'after'); setSelected(null); }}><option value="before">Before changes</option><option value="after">After changes</option></select></label>}
     <div className="metric-grid" aria-label="Analysis summary">
       <div className="metric-card"><span>Functions</span><strong>{functions.length}</strong><small>Mapped / potentially affected</small></div>

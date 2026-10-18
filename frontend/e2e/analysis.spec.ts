@@ -148,3 +148,39 @@ test('provider failure offers a working offline fallback', async ({ page }) => {
   await analysis.getByRole('button', { name: 'Analyze repository' }).click();
   await expect(analysis.getByRole('button', { name: 'Use inventory.validate_stock' })).toBeVisible();
 });
+
+
+test('workspace map shows real service totals, contract graph, and service filtering', async ({ page }) => {
+  await page.goto('/');
+  const analysis = page.getByRole('region', { name: 'Repository change analysis' });
+  await analysis.getByLabel('Analysis mode').selectOption('workspace');
+  await analysis.getByLabel('Workspace manifest path').fill(resolve('..', 'examples', 'workspace', 'workspace.json'));
+  const response = page.waitForResponse(response => response.url().endsWith('/api/analysis/workspace') && response.request().method() === 'POST');
+  await analysis.getByRole('button', { name: 'Analyze repository' }).click();
+  const data = await (await response).json();
+  const snapshots = Object.values(data.snapshots) as Array<{ functions: unknown[] }>;
+  const functionCount = snapshots.reduce((sum, snapshot) => sum + snapshot.functions.length, 0);
+  await expect(analysis.getByLabel('Workspace overview')).toContainText('3 services');
+  await expect(analysis.getByLabel('Analysis summary').locator('.metric-card').first().locator('strong')).toHaveText(String(functionCount));
+  expect(await analysis.locator('.graph-node').count()).toBeGreaterThan(0);
+  await expect(analysis.locator('.edge-path[data-source="client::api.loadStock"][data-target="stock::app.get_stock"]')).toHaveCount(1);
+  await analysis.getByLabel('Service view').selectOption('stock');
+  await expect(analysis.getByLabel('Analysis summary').locator('.metric-card').first().locator('strong')).toHaveText(String(data.snapshots.stock.functions.length));
+  await expect(analysis.getByRole('button', { name: 'Inspect stock::app.validate_stock', exact: true })).toBeVisible();
+});
+
+test('commerce graph routes connect to their actual handlers', async ({ page }) => {
+  await page.goto('/');
+  const analysis = page.getByRole('region', { name: 'Repository change analysis' });
+  await analysis.getByLabel('Analysis mode').selectOption('impact');
+  await analysis.getByLabel('Repository path').fill(resolve('..', 'examples', 'commerce'));
+  await analysis.getByLabel('Qualified targets').fill('inventory.validate_stock');
+  const response = page.waitForResponse(response => response.url().endsWith('/api/analysis/impact'));
+  await analysis.getByRole('button', { name: 'Analyze repository' }).click();
+  const data = (await (await response).json()).report;
+  const names = new Map(data.affected_functions.map((fn: { id: string; qualified_name: string }) => [fn.id, fn.qualified_name]));
+  for (const endpoint of data.potentially_affected_endpoints) {
+    await expect(analysis.locator(`.edge-path[data-source="${endpoint.id}"][data-target="${names.get(endpoint.handler_id)}"]`)).toHaveCount(1);
+    await expect(analysis.locator(`.edge-path[data-source="${endpoint.id}"]`)).toHaveCount(1);
+  }
+});

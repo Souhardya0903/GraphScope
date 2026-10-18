@@ -58,7 +58,7 @@ export default function GraphCanvas({ evidence, targetSymbol, selectedNodeId, on
         const x1 = source.x + WIDTH / 2; const x2 = target.x - WIDTH / 2;
         const y1 = source.y + HEIGHT / 2; const y2 = target.y + HEIGHT / 2;
         const bend = Math.max(45, Math.abs(x2 - x1) / 2);
-        return <path key={edge.id} d={`M${x1},${y1} C${x1 + bend},${y1} ${x2 - bend},${y2} ${x2},${y2}`} className="edge-path" markerEnd={`url(#${markerId})`} />;
+        return <path key={edge.id} d={`M${x1},${y1} C${x1 + bend},${y1} ${x2 - bend},${y2} ${x2},${y2}`} className="edge-path" data-source={edge.source} data-target={edge.target} markerEnd={`url(#${markerId})`} />;
       })}
       {graph.nodes.map(node => <g key={node.id} className="graph-node" transform={`translate(${node.x - WIDTH / 2},${node.y})`}
         role="button" tabIndex={0} aria-label={`Inspect ${node.id}`} aria-pressed={node.id === selectedNodeId}

@@ -209,7 +209,13 @@ The bundled manifest describes Python stock/worker services and a TypeScript cli
 
 Click **Analyze repository**.
 
-Pass criteria: inspect **Full analysis JSON** or export for `snapshots`, `service_links`, and `service_gaps`. The workspace overview is more complete in JSON than in the graph. Verify that the stock, client, and worker services are represented and HTTP/message links carry evidence.
+Pass criteria:
+
+- The workspace overview shows stock, client, and worker, with nonzero aggregate function counts.
+- The graph includes service-prefixed function names and inferred HTTP/message dependencies.
+- Use **Service view** or a service card to inspect one service; counts and graph update to that service.
+- Expand **Inferred service contracts** to inspect dependency direction, source locations, confidence, and matching rules.
+- Export or inspect **Full analysis JSON** for the complete `snapshots`, `service_links`, and `service_gaps`.
 
 ### B. Cross-service target impact
 
