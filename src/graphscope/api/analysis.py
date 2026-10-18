@@ -1,7 +1,6 @@
 """Local operator API for the extended analysis engine; blocking work uses threads."""
 
 import subprocess
-from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException
@@ -11,6 +10,7 @@ from graphscope.analysis.changes import compare
 from graphscope.analysis.impact import impact, propose
 from graphscope.analysis.repository import analyze
 from graphscope.analysis.workspace import map_workspace, workspace_changes, workspace_impact
+from graphscope.api.safety import allowed_path
 from graphscope.models import Contract
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
@@ -34,7 +34,13 @@ def execute(operation, request):
             raise ValueError("Choose targets or a resource, not both")
         if request.changed_service and (request.service or request.targets):
             raise ValueError("Choose changed service or explicit service target, not both")
-        root = Path(request.root).resolve(strict=True)
+        root = allowed_path(request.root)
+        if operation == "workspace":
+            from graphscope.analysis.workspace import Workspace
+
+            manifest = Workspace.model_validate_json(root.read_text(encoding="utf-8"))
+            for service in manifest.services:
+                allowed_path(root.parent / service.root)
         if operation == "workspace":
             if request.changed_service:
                 return workspace_changes(root, request.changed_service, request.base, request.head)

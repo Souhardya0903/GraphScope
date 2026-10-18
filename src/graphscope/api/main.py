@@ -13,6 +13,10 @@ load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+from graphscope.api.safety import allowed_path, allowed_origins
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from redis.exceptions import RedisError
@@ -36,10 +40,19 @@ app = FastAPI(
 from graphscope.api.analysis import router as analysis_router
 
 app.include_router(analysis_router)
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=['localhost', '127.0.0.1', 'testserver'])
+
+@app.middleware('http')
+async def local_origin_guard(request, call_next):
+    origin = request.headers.get('origin')
+    same_origin = str(request.base_url).rstrip('/')
+    if origin and origin not in allowed_origins() and origin != same_origin:
+        return JSONResponse({'detail': 'Origin is not allowed by the local server'}, status_code=403)
+    return await call_next(request)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Tightened in production; React dev server needs localhost:5173
+    allow_origins=allowed_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -137,7 +150,10 @@ def index_repository(req: IndexRequest):
     Parse a Python repository folder with the AST extractor and persist the
     resulting snapshot into FalkorDB. Returns the snapshot ID and coverage stats.
     """
-    root = Path(req.root)
+    try:
+        root = allowed_path(req.root)
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(400, detail='Repository path is missing or invalid') from exc
     if not root.exists():
         raise HTTPException(status_code=400, detail=f"Path not found: {req.root}")
     try:
@@ -349,6 +365,10 @@ def get_evidence(
         g = select_graph(graph)
         queries = GraphQueries(g)
         ids = [e.strip() for e in evidence_ids.split(",") if e.strip()]
+        if include_source:
+            rows = queries.read("MATCH (s:RepositorySnapshot {id:$sid,status:'ready'}) RETURN s.root", {"sid": snapshot_id})
+            if rows:
+                allowed_path(rows[0][0])
         result = queries.evidence(snapshot_id, ids, include_source=include_source)
         return result
     except RedisError as exc:
@@ -369,3 +389,9 @@ def delete_snapshot(snapshot_id: str, graph: str | None = Query(default=None)):
         return {"deleted": True, "snapshot_id": snapshot_id}
     except RedisError as exc:
         raise HTTPException(status_code=503, detail=f"FalkorDB unavailable: {exc}") from exc
+
+
+# API routes are registered first; built assets share the same loopback origin.
+_frontend = Path(__file__).resolve().parents[3] / "frontend" / "dist"
+if (_frontend / "index.html").is_file():
+    app.mount("/", StaticFiles(directory=_frontend, html=True), name="dashboard")

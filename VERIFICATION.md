@@ -5,7 +5,7 @@ parse source without executing it, render potential impact/evidence/gaps and exp
 
 | Boundary | Verified evidence |
 |---|---|
-| Browser form to API | Two Playwright tests against real FastAPI and production Vite preview servers |
+| Browser form to API | Two Playwright tests against the single-origin local beta server serving production assets |
 | API to source analysis | Local API tests plus Git, parser, change and workspace regression fixtures |
 | Analysis to FalkorDB | Disposable graph persistence/traversal/API integration tests |
 | Report to UI | 21 frontend tests and real-browser endpoint/evidence/proposal/export assertions |
@@ -22,12 +22,12 @@ Reproduce from the checkout:
 ```powershell
 $env:GRAPHSCOPE_INTEGRATION = "1"
 .\.venv\Scripts\python.exe -m pytest -q
-npm --prefix frontend test -- --maxWorkers=1 --minWorkers=1
+npm --prefix frontend test -- --maxWorkers=1
 .\frontend\node_modules\.bin\playwright.cmd install chromium
 npm --prefix frontend run test:e2e
 ```
 
-Browser checks use ports 8765/5179 and terminate their own servers. Traces on failure
+Browser checks use port 8765 and terminate their own servers. Traces on failure
 are written under ignored reports/playwright. On Linux, install Chromium with
 `npx playwright install --with-deps chromium` from frontend/. The Python path defaults
 to the checkout's .venv, overridable with GRAPHSCOPE_PYTHON. Git/FalkorDB credentials

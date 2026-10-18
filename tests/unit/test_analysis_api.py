@@ -35,3 +35,18 @@ def test_analysis_input_failures_are_structured():
             client.post("/api/analysis/map", json={"root": DEMO, "unexpected": True}).status_code
             == 422
         )
+
+
+def test_local_boundary_rejects_foreign_origin_host_and_disallowed_root():
+    with TestClient(app) as client:
+        assert client.get('/api/health', headers={'Host': 'evil.example'}).status_code == 400
+        assert client.post('/api/analysis/map', json={'root': DEMO}, headers={'Origin': 'https://evil.example'}).status_code == 403
+        assert client.post('/api/analysis/map', json={'root': str(Path(DEMO).anchor)}).status_code == 403
+
+
+def test_allowed_root_is_explicit(tmp_path, monkeypatch):
+    import json
+
+    from graphscope.api.safety import allowed_path
+    monkeypatch.setenv('GRAPHSCOPE_ALLOWED_ROOTS', json.dumps([str(tmp_path)]))
+    assert allowed_path(tmp_path) == tmp_path.resolve()

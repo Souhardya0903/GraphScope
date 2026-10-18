@@ -18,7 +18,7 @@ export default function QueryCapsule({
 }: QueryCapsuleProps) {
   const [question, setQuestion] = useState('What functions and endpoints are impacted if I change validate_stock?');
   const [target, setTarget] = useState('inventory.validate_stock');
-  const [provider, setProvider] = useState<'none' | 'test' | 'openai' | 'gemini' | 'ollama'>('gemini');
+  const [provider, setProvider] = useState<'none' | 'test' | 'openai' | 'gemini' | 'ollama'>('none');
   const [shareSource, setShareSource] = useState(false);
 
   const handleRun = (e: React.FormEvent) => {

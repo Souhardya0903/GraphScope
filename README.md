@@ -9,6 +9,13 @@ are implemented. Stage 3 adds cloud graph persistence and deterministic dependen
 queries. Stage 4 adds bounded investigation tools, structured reports, Ollama Cloud, Gemini and OpenAI
 adapter, and a local tool-loop test mode. The API and UI remain pending.
 
+## Run the local beta
+
+See [LOCAL_BETA.md](LOCAL_BETA.md) for reproducible Windows/Linux setup and the
+single-origin launcher: `.venv/Scripts/python.exe -m graphscope serve --allow-root "D:\YourRepository"`.
+The server binds to 127.0.0.1:8080 and serves the built dashboard plus API. Public
+multi-user hosting is not supported by this beta.
+
 ## Repository changes and cross-service impact
 
 The expanded analysis CLI supports Git worktree/staged/revision comparisons,
