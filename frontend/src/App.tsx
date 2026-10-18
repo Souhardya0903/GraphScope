@@ -20,6 +20,7 @@ import {
 import './App.css';
 
 export default function App() {
+  const [workflow, setWorkflow] = useState<'repository' | 'snapshot'>('repository');
   const [snapshots, setSnapshots] = useState<SnapshotItem[]>([]);
   const [activeSnapshotId, setActiveSnapshotId] = useState<string | null>(null);
   const [isIngestOpen, setIsIngestOpen] = useState(false);
@@ -42,17 +43,15 @@ export default function App() {
     try {
       const list = await fetchSnapshots();
       setSnapshots(list);
-      if (list.length > 0 && !activeSnapshotId) {
-        setActiveSnapshotId(list[0].snapshot_id);
-      }
+      setActiveSnapshotId(current => current ?? list[0]?.snapshot_id ?? null);
     } catch (e) {
       console.warn('Could not load snapshots:', e);
     }
-  }, [activeSnapshotId]);
+  }, []);
 
   useEffect(() => {
-    loadSnapshots();
-  }, [loadSnapshots]);
+    if (workflow === 'snapshot') loadSnapshots();
+  }, [loadSnapshots, workflow]);
 
   // Handle successful ingestion
   const handleIngestSuccess = (res: IndexResponse) => {
@@ -101,18 +100,25 @@ export default function App() {
   return (
     <div className="app-layout">
       <CommandBar
+        showSnapshotControls={workflow === 'snapshot'}
         snapshots={snapshots}
         activeSnapshotId={activeSnapshotId}
-        onSelectSnapshot={setActiveSnapshotId}
+        onSelectSnapshot={id => { reset(); setActiveEvidence(null); setSelectedNodeId(null); setActiveSnapshotId(id); }}
         onOpenIngest={() => setIsIngestOpen(true)}
         onExportMarkdown={handleExportMarkdown}
         onExportJSON={handleExportJSON}
         hasReport={report !== null}
       />
 
-      <RepositoryAnalysis />
+      <nav className="workflow-tabs" aria-label="Analysis workflow">
+        <button className="apple-btn btn-secondary" aria-pressed={workflow === 'repository'} onClick={() => { reset(); setWorkflow('repository'); }}>Repository analysis</button>
+        <button className="apple-btn btn-secondary" aria-pressed={workflow === 'snapshot'} onClick={() => setWorkflow('snapshot')}>Stored snapshot investigation</button>
+      </nav>
+      {workflow === 'repository' ? <RepositoryAnalysis /> : <>
+      <p className="snapshot-context">Investigating stored repository: {snapshots.find(s => s.snapshot_id === activeSnapshotId)?.root ?? 'Select or ingest a repository above'}. This is independent of repository analysis.</p>
 
       <QueryCapsule
+        key={activeSnapshotId}
         snapshotId={activeSnapshotId}
         isStreaming={status === 'streaming'}
         onInvestigate={startInvestigation}
@@ -170,6 +176,8 @@ export default function App() {
           </ErrorBoundary>
         </aside>
       </div>
+
+      </>}
 
       <IngestModal
         isOpen={isIngestOpen}

@@ -13,6 +13,8 @@ describe('Dashboard Integration', () => {
   it('renders all main panels and submits investigation', async () => {
     render(<App />);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Stored snapshot investigation' }));
+
     // Brand and command bar
     expect(screen.getByText(/GraphScope/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /ingest/i })).toBeInTheDocument();

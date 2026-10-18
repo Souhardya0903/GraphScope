@@ -49,6 +49,8 @@ export default function GraphCanvas({
     setPan({ x: 50, y: 50 });
   };
 
+  if (!graphData.nodes.length) return <p role="status" style={{ padding: 24 }}>No dependency graph to display. Run an analysis to see verified relationships.</p>;
+
   return (
     <div className="graph-canvas-container">
       <div className="canvas-toolbar">

@@ -16,14 +16,16 @@ export default function QueryCapsule({
   onInvestigate,
   onStop,
 }: QueryCapsuleProps) {
-  const [question, setQuestion] = useState('What functions and endpoints are impacted if I change validate_stock?');
-  const [target, setTarget] = useState('inventory.validate_stock');
+  const [question, setQuestion] = useState('');
+  const [target, setTarget] = useState('');
   const [provider, setProvider] = useState<'none' | 'test' | 'openai' | 'gemini' | 'ollama'>('none');
   const [shareSource, setShareSource] = useState(false);
 
+  const canRun = Boolean(snapshotId && question.trim() && (!['none', 'test'].includes(provider) || target.trim()));
+
   const handleRun = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!snapshotId || !question.trim()) return;
+    if (!canRun || !snapshotId) return;
 
     onInvestigate({
       snapshot_id: snapshotId,
@@ -44,7 +46,8 @@ export default function QueryCapsule({
             className="query-input"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Ask an investigation question (e.g. What happens if I modify inventory.validate_stock?)"
+            aria-label="Investigation question"
+            placeholder="Ask an investigation question about the selected snapshot"
             disabled={isStreaming}
           />
 
@@ -53,9 +56,10 @@ export default function QueryCapsule({
             className="target-input"
             value={target}
             onChange={(e) => setTarget(e.target.value)}
-            placeholder="Target symbol (optional)"
+            aria-label="Investigation target"
+            placeholder="Qualified target (required without a model)"
             disabled={isStreaming}
-            title="Qualified symbol name, e.g. inventory.validate_stock"
+            title="A qualified function name from the selected snapshot"
           />
 
           {isStreaming ? (
@@ -72,8 +76,8 @@ export default function QueryCapsule({
             <button
               type="submit"
               className="apple-btn btn-primary"
-              disabled={!snapshotId || !question.trim()}
-              style={{ opacity: !snapshotId || !question.trim() ? 0.5 : 1 }}
+              disabled={!canRun}
+              style={{ opacity: canRun ? 1 : 0.5 }}
             >
               <Play size={13} fill="#fff" />
               <span>Run</span>
@@ -95,7 +99,7 @@ export default function QueryCapsule({
                 <option value="test">Deterministic (test planner)</option>
                 <option value="gemini">Gemini</option>
                 <option value="openai">OpenAI</option>
-                <option value="ollama">Ollama (local)</option>
+                <option value="ollama">Ollama</option>
                 <option value="none">None (direct graph resolve)</option>
               </select>
             </div>

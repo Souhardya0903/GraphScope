@@ -1,4 +1,4 @@
-.repository-analysis { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-subtle); max-height: 45vh; overflow: auto; flex-shrink: 0; }
+.repository-analysis { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-subtle); min-height: 0; flex: 1; overflow: auto; flex-shrink: 0; }
 .repository-analysis h2 { font-size: 1rem; }
 .repository-analysis p { color: var(--text-secondary); font-size: .8rem; margin: .35rem 0; }
 .repository-analysis form { display: flex; flex-wrap: wrap; gap: .75rem; align-items: end; }
@@ -9,4 +9,4 @@
 .analysis-graph { height: 280px; margin: .75rem 0; position: relative; }
 .repository-analysis details { margin-top: .6rem; }
 .repository-analysis ul { padding-left: 1.25rem; font-size: .8rem; }
-@media (max-width: 700px) { .repository-analysis { max-height: 65vh; } .repository-analysis label, .repository-analysis input, .repository-analysis textarea { width: 100%; } }
+@media (max-width: 700px) {  .repository-analysis label, .repository-analysis input, .repository-analysis textarea { width: 100%; } }

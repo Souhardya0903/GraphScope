@@ -16,11 +16,15 @@ export default function AnalysisResults({ result, onCandidate }: { result: Data;
   const paths = records(report.paths);
   const functions = records(report.affected_functions ?? report.functions);
   const endpoints = records(report.potentially_affected_endpoints ?? report.endpoints);
-  const evidence = paths.flatMap(p => records(p.evidence)).filter(e => !selected || e.caller_id === selected || e.callee_id === selected);
+  const calls = records(report.calls);
+  const evidence = [...paths.flatMap(p => records(p.evidence)), ...calls].filter(e => !selected || e.caller_id === selected || e.callee_id === selected);
   const gaps = [...records(report.analysis_gaps ?? report.gaps), ...records(result.change_gaps), ...records(wrapper.service_gaps), ...records(report.unresolved_calls)];
   const limits = object(report.limits);
   const idToName = new Map(functions.map(f => [String(f.id), String(f.qualified_name)]));
-  const graph: GraphEvidencePayload = { paths: paths.map(p => Array.isArray(p.function_ids) ? p.function_ids.map(id => idToName.get(String(id)) ?? String(id)) : []), potentially_affected_endpoints: endpoints.map(e => `${e.method} ${e.path}`) };
+  const allGraphPaths = paths.length
+    ? paths.map(p => Array.isArray(p.function_ids) ? p.function_ids.map(id => idToName.get(String(id)) ?? String(id)) : [])
+    : calls.map(c => [idToName.get(String(c.caller_id)) ?? String(c.caller_id), idToName.get(String(c.callee_id)) ?? String(c.callee_id)]);
+  const graph: GraphEvidencePayload = { paths: allGraphPaths.slice(0, 200), potentially_affected_endpoints: endpoints.map(e => `${e.method} ${e.path}`) };
 
   return <div aria-label="Analysis findings">
     {comparison && <label>Snapshot side<select aria-label="Snapshot side" value={side} onChange={e => { setSide(e.target.value as 'before' | 'after'); setSelected(null); }}><option value="before">Before changes</option><option value="after">After changes</option></select></label>}
@@ -29,6 +33,7 @@ export default function AnalysisResults({ result, onCandidate }: { result: Data;
     {Array.isArray(result.changes) && result.changes.length === 0 && <p>No eligible changes found between these versions.</p>}
     <p>{String(report.caveat ?? 'Static analysis is partial. An empty path does not establish safety.')}</p>
     {(limits.truncated || limits.depth_limited) ? <p role="alert">Traversal reached a limit; additional affected code may be missing.</p> : null}
+    {allGraphPaths.length > 200 && <p>Graph preview shows the first 200 paths. Export JSON for all relationships.</p>}
     <div className="analysis-graph"><GraphCanvas evidence={graph} targetSymbol={targets.length ? String(targets[0].qualified_name) : null} selectedNodeId={selected ? idToName.get(selected) ?? selected : null} onSelectNode={name => setSelected(String(functions.find(f => f.qualified_name === name)?.id ?? name))} /></div>
     <details><summary>Affected functions and endpoints</summary><ul>{functions.map(f => <li key={String(f.id)}><button className="apple-btn" onClick={() => setSelected(String(f.id))}>{String(f.qualified_name)}</button> — {String(f.file_path)}:{String(f.start_line)}</li>)}</ul><ul>{endpoints.map(e => <li key={String(e.id)}>{String(e.method)} {String(e.path)}</li>)}</ul></details>
     <details open={selected !== null}><summary>Dependency evidence {selected ? `for ${idToName.get(selected) ?? selected}` : ''}</summary>{evidence.length ? evidence.map((e, i) => <p key={i}>{String(e.file_path)}:{String(e.line)} — {String(e.rule)} ({String(e.confidence ?? 'explicit')})</p>) : <p>Select a linked function to see path evidence. Source hashes are included in the exported report.</p>}</details>

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   InvestigateRequest,
   AgentThoughtPayload,
@@ -53,6 +53,8 @@ export function useInvestigationStream() {
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  useEffect(() => () => abortControllerRef.current?.abort(), []);
+
   const reset = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -82,6 +84,7 @@ export function useInvestigationStream() {
         signal: controller.signal,
       });
 
+      if (abortControllerRef.current !== controller) return;
       if (!response.ok) {
         const errJson = await response.json().catch(() => ({ detail: response.statusText }));
         setStatus('error');
@@ -101,6 +104,7 @@ export function useInvestigationStream() {
 
       while (true) {
         const { value, done } = await reader.read();
+        if (abortControllerRef.current !== controller) return;
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
@@ -153,12 +157,13 @@ export function useInvestigationStream() {
         }
       }
     } catch (err: unknown) {
+      if (abortControllerRef.current !== controller) return;
       if ((err as Error)?.name === 'AbortError') {
         setStatus('idle');
         return;
       }
       setStatus('error');
-      setError((err as Error)?.message || 'An unexpected error occurred during investigation.');
+      setError(err instanceof TypeError ? 'Cannot reach the GraphScope API. Check that the local server is running and reopen its URL (normally http://127.0.0.1:8080).' : (err as Error)?.message || 'An unexpected error occurred during investigation.');
     }
   }, [reset]);
 

@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { buildGraphData } from '../utils/graphLayout';
 
 describe('buildGraphData', () => {
+  it('does not invent a target when no analysis exists', () => {
+    expect(buildGraphData(null, null)).toEqual({ nodes: [], edges: [] });
+  });
   it('extracts nodes and edges from caller paths and endpoints', () => {
     const evidence = {
       paths: [

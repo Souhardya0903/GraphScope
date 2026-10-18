@@ -42,3 +42,7 @@
   align-items: center;
   justify-content: space-between;
 }
+
+.workflow-tabs { display: flex; gap: .75rem; padding: .75rem 1.25rem; }
+.workflow-tabs [aria-pressed="true"] { border-color: var(--accent-blue); color: var(--accent-blue); }
+.snapshot-context { padding: .4rem 1.25rem; color: var(--text-secondary); font-size: .8rem; }

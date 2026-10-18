@@ -3,6 +3,7 @@ import { SnapshotItem } from '../types/api';
 import './CommandBar.css';
 
 interface CommandBarProps {
+  showSnapshotControls?: boolean;
   snapshots: SnapshotItem[];
   activeSnapshotId: string | null;
   onSelectSnapshot: (id: string) => void;
@@ -13,6 +14,7 @@ interface CommandBarProps {
 }
 
 export default function CommandBar({
+  showSnapshotControls = true,
   snapshots,
   activeSnapshotId,
   onSelectSnapshot,
@@ -27,10 +29,10 @@ export default function CommandBar({
       <div className="brand-section">
         <div className="brand-indicator" />
         <h1 className="brand-title">GraphScope</h1>
-        <span className="brand-badge">Gemini</span>
+        <span className="brand-badge">Static analysis</span>
       </div>
 
-      <div className="repo-controls">
+      {showSnapshotControls && <div className="repo-controls">
         <FolderGit2 size={16} color="var(--text-secondary)" />
         {snapshots.length > 0 ? (
           <select
@@ -58,9 +60,9 @@ export default function CommandBar({
           <Plus size={14} />
           <span>Ingest Local</span>
         </button>
-      </div>
+      </div>}
 
-      <div className="export-group">
+      {showSnapshotControls && <div className="export-group">
         <button
           className="apple-btn btn-secondary"
           onClick={onExportMarkdown}
@@ -79,7 +81,7 @@ export default function CommandBar({
           <FileJson size={14} />
           <span>JSON</span>
         </button>
-      </div>
+      </div>}
     </header>
   );
 }

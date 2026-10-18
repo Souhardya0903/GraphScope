@@ -29,11 +29,11 @@ export function buildGraphData(
   const edgeSet = new Set<string>();
   const edges: GraphEdge[] = [];
 
-  const effectiveTarget = String(targetSymbol || 'target');
+  const effectiveTarget = targetSymbol || '';
 
   // Always seed target node
   const targetLabel = effectiveTarget.includes('.') ? effectiveTarget.split('.').pop()! : effectiveTarget;
-  nodesMap.set(effectiveTarget, { label: targetLabel, isTarget: true, isEndpoint: false, layer: 0 });
+  if (effectiveTarget) nodesMap.set(effectiveTarget, { label: targetLabel, isTarget: true, isEndpoint: false, layer: 0 });
 
   if (evidence?.paths) {
     for (const rawPath of evidence.paths) {

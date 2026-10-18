@@ -8,6 +8,7 @@ describe('Repository analysis API integration', () => {
     const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ mode: 'actual-change', changes: [] }) });
     vi.stubGlobal('fetch', fetch);
     render(<RepositoryAnalysis />);
+    fireEvent.change(screen.getByLabelText("Repository path"), { target: { value: "examples/commerce" } });
     fireEvent.click(screen.getByRole('button', { name: 'Analyze repository' }));
     await waitFor(() => expect(screen.getByText('Export analysis JSON')).toBeInTheDocument());
     expect(fetch).toHaveBeenCalledWith('/api/analysis/changes', expect.objectContaining({ body: expect.stringContaining('worktree') }));
@@ -15,6 +16,7 @@ describe('Repository analysis API integration', () => {
   it('shows backend validation errors', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({ detail: 'Missing repository' }) }));
     render(<RepositoryAnalysis />);
+    fireEvent.change(screen.getByLabelText("Repository path"), { target: { value: "examples/commerce" } });
     fireEvent.click(screen.getByRole('button', { name: 'Analyze repository' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Missing repository');
   });
@@ -22,6 +24,7 @@ describe('Repository analysis API integration', () => {
     let finish!: (value: unknown) => void;
     vi.stubGlobal('fetch', vi.fn(() => new Promise(resolve => { finish = resolve; })));
     render(<RepositoryAnalysis />);
+    fireEvent.change(screen.getByLabelText("Repository path"), { target: { value: "examples/commerce" } });
     fireEvent.click(screen.getByRole('button', { name: 'Analyze repository' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Cancel request' }));
     expect(screen.getByRole('alert')).toHaveTextContent('cancelled');
