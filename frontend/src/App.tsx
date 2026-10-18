@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import CommandBar from './components/CommandBar';
 import RepositoryAnalysis from './components/RepositoryAnalysis';
+import { evidenceForNode } from './utils/evidenceSelection';
 import IngestModal from './components/IngestModal';
 import QueryCapsule from './components/QueryCapsule';
 import TelemetryHUD from './components/TelemetryHUD';
@@ -70,7 +71,8 @@ export default function App() {
     if (!activeSnapshotId) return;
 
     try {
-      const evidenceRes: any = await fetchEvidence(activeSnapshotId, [nodeId], true);
+      const ids = evidenceForNode(graphEvidence || report?.graph_evidence || null, nodeId);
+      const evidenceRes: any = await fetchEvidence(activeSnapshotId, ids, true);
       let ev: EvidenceItem | null = null;
       if (Array.isArray(evidenceRes?.evidence)) {
         ev = evidenceRes.evidence[0] || null;
@@ -147,7 +149,7 @@ export default function App() {
           <ErrorBoundary fallbackTitle="Graph Canvas Render Error">
             <GraphCanvas
               evidence={graphEvidence || report?.graph_evidence || null}
-              targetSymbol={report?.target_id || (report as any)?.target || null}
+              targetSymbol={(report?.graph_evidence?.target as {qualified_name?: string} | undefined)?.qualified_name || report?.target_id || null}
               selectedNodeId={selectedNodeId}
               onSelectNode={handleSelectNode}
             />

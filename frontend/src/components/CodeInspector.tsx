@@ -52,7 +52,7 @@ export default function CodeInspector({ selectedSymbol, evidence }: CodeInspecto
       <div className="code-viewer">
         {lines.length > 0 ? (
           lines.map((lineContent, idx) => {
-            const currentLineNum = idx + 1;
+            const currentLineNum = targetLine + idx;
             const isHighlighted = currentLineNum === targetLine;
 
             return (

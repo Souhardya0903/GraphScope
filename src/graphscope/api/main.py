@@ -13,6 +13,7 @@ load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from redis.exceptions import RedisError
 
@@ -131,7 +132,7 @@ async def health():
 
 
 @app.post("/api/index", response_model=IndexResponse)
-async def index_repository(req: IndexRequest):
+def index_repository(req: IndexRequest):
     """
     Parse a Python repository folder with the AST extractor and persist the
     resulting snapshot into FalkorDB. Returns the snapshot ID and coverage stats.
@@ -159,7 +160,7 @@ async def index_repository(req: IndexRequest):
 
 
 @app.get("/api/snapshots")
-async def list_snapshots(graph: str | None = Query(default=None)):
+def list_snapshots(graph: str | None = Query(default=None)):
     """List all snapshot IDs stored in the configured FalkorDB graph."""
     try:
         g = select_graph(graph)
@@ -174,7 +175,7 @@ async def list_snapshots(graph: str | None = Query(default=None)):
 
 
 @app.get("/api/snapshots/{snapshot_id}")
-async def get_snapshot(snapshot_id: str, graph: str | None = Query(default=None)):
+def get_snapshot(snapshot_id: str, graph: str | None = Query(default=None)):
     """Retrieve metadata and coverage stats for a specific snapshot."""
     try:
         g = select_graph(graph)
@@ -235,7 +236,7 @@ async def investigate(req: InvestigateRequest):
                     "step": "resolve_symbol",
                     "detail": f"Resolving target: {req.target}",
                 })
-                report = build_report(
+                report = await run_in_threadpool(build_report,
                     GraphQueries(graph),
                     req.snapshot_id,
                     req.target,
@@ -293,7 +294,7 @@ async def investigate(req: InvestigateRequest):
         events_buffer = []
         report = None
         try:
-            report = run_investigation(
+            report = await run_in_threadpool(run_investigation,
                 graph,
                 req.snapshot_id,
                 req.question,
@@ -334,7 +335,7 @@ async def investigate(req: InvestigateRequest):
 
 
 @app.get("/api/evidence")
-async def get_evidence(
+def get_evidence(
     snapshot_id: str = Query(description="Snapshot ID."),
     evidence_ids: str = Query(description="Comma-separated evidence edge IDs."),
     include_source: bool = Query(default=False),
@@ -357,7 +358,7 @@ async def get_evidence(
 
 
 @app.delete("/api/snapshots/{snapshot_id}")
-async def delete_snapshot(snapshot_id: str, graph: str | None = Query(default=None)):
+def delete_snapshot(snapshot_id: str, graph: str | None = Query(default=None)):
     """Delete all nodes belonging to a specific snapshot from FalkorDB."""
     try:
         g = select_graph(graph)

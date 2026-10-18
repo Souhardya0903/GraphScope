@@ -18,5 +18,16 @@ describe('Repository analysis API integration', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Analyze repository' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Missing repository');
   });
+  it('discards responses that arrive after cancellation', async () => {
+    let finish!: (value: unknown) => void;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(resolve => { finish = resolve; })));
+    render(<RepositoryAnalysis />);
+    fireEvent.click(screen.getByRole('button', { name: 'Analyze repository' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel request' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('cancelled');
+    finish({ ok: true, json: async () => ({ changes: [] }) });
+    await waitFor(() => expect(screen.queryByText('Export analysis JSON')).toBeNull());
+  });
+
 });
 

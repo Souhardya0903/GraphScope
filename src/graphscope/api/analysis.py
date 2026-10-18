@@ -30,6 +30,10 @@ class AnalysisRequest(Contract):
 
 def execute(operation, request):
     try:
+        if request.resource and request.targets:
+            raise ValueError("Choose targets or a resource, not both")
+        if request.changed_service and (request.service or request.targets):
+            raise ValueError("Choose changed service or explicit service target, not both")
         root = Path(request.root).resolve(strict=True)
         if operation == "workspace":
             if request.changed_service:
