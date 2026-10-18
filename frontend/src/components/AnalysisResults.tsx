@@ -25,7 +25,7 @@ export default function AnalysisResults({ result, onCandidate }: { result: Data;
   const allGraphPaths = paths.length
     ? paths.map(p => Array.isArray(p.function_ids) ? p.function_ids.map(id => idToName.get(String(id)) ?? String(id)) : [])
     : calls.map(c => [idToName.get(String(c.caller_id)) ?? String(c.caller_id), idToName.get(String(c.callee_id)) ?? String(c.callee_id)]);
-  const graph: GraphEvidencePayload = { paths: allGraphPaths.slice(0, 200), potentially_affected_endpoints: endpoints.map(e => `${e.method} ${e.path}`) };
+  const graph: GraphEvidencePayload = { paths: allGraphPaths.slice(0, 200), potentially_affected_endpoints: endpoints.map(e => ({ id: String(e.id), method: String(e.method), path: String(e.path), handler_symbol: idToName.get(String(e.handler_id)) })) };
 
   if (result.status === 'confirmation_required' || result.status === 'clarification_required') return <div className="proposal-review" aria-label="Proposal review">
     <span className="eyebrow">{result.provider ? `${String(result.provider).toUpperCase()} SUGGESTION` : 'TARGET REVIEW'}</span>

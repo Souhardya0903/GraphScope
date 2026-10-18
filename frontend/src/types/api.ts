@@ -36,8 +36,8 @@ export interface ToolCallPayload {
 }
 
 export interface GraphEvidencePayload {
-  paths?: string[][];
-  potentially_affected_endpoints?: string[];
+  paths?: Array<string[] | { functions?: string[]; function_ids?: string[]; evidence_ids?: string[] }>;
+  potentially_affected_endpoints?: Array<string | { id?: string; method?: string; path?: string; handler_id?: string; handler_symbol?: string }>;
   [key: string]: unknown;
 }
 

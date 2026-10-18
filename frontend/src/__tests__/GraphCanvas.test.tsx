@@ -55,3 +55,21 @@ describe('buildGraphData', () => {
     expect(epNode?.label).toContain('/api/checkout');
   });
 });
+
+
+it('connects each endpoint only to its declared handler across branches', () => {
+  const graph = buildGraphData({ paths: [['orders.create', 'inventory.check'], ['reservations.reserve', 'inventory.check']], potentially_affected_endpoints: [
+    { id: 'orders-route', method: 'POST', path: '/orders', handler_symbol: 'orders.create' },
+    { id: 'reserve-route', method: 'POST', path: '/reservations', handler_symbol: 'reservations.reserve' },
+    { id: 'unknown-route', method: 'GET', path: '/unknown' },
+  ] }, 'inventory.check');
+  expect(graph.edges.filter(edge => edge.source.endsWith('-route'))).toEqual([
+    { id: 'orders-route->orders.create', source: 'orders-route', target: 'orders.create' },
+    { id: 'reserve-route->reservations.reserve', source: 'reserve-route', target: 'reservations.reserve' },
+  ]);
+});
+
+it('resolves stored-snapshot handler IDs through path identity metadata', () => {
+  const graph = buildGraphData({ paths: [{ function_ids: ['a', 'b'], functions: ['orders.create', 'inventory.check'] }], potentially_affected_endpoints: [{ id: 'route', method: 'POST', path: '/orders', handler_id: 'a' }] }, 'inventory.check');
+  expect(graph.edges).toContainEqual({ id: 'route->orders.create', source: 'route', target: 'orders.create' });
+});

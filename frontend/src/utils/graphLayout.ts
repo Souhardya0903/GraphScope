@@ -31,7 +31,18 @@ export function buildGraphData(
 
   const effectiveTarget = targetSymbol || '';
 
-  // Always seed target node
+  const functionNames = new Map<string, string>();
+  const target = evidence?.target as { id?: string; qualified_name?: string } | undefined;
+  if (target?.id && target.qualified_name) functionNames.set(target.id, target.qualified_name);
+  for (const path of evidence?.paths ?? []) {
+    if (!Array.isArray(path) && path.function_ids && path.functions) {
+      path.function_ids.forEach((id, index) => {
+        if (path.functions?.[index]) functionNames.set(id, path.functions[index]);
+      });
+    }
+  }
+
+  // Seed only a real selected target.
   const targetLabel = effectiveTarget.includes('.') ? effectiveTarget.split('.').pop()! : effectiveTarget;
   if (effectiveTarget) nodesMap.set(effectiveTarget, { label: targetLabel, isTarget: true, isEndpoint: false, layer: 0 });
 
@@ -86,6 +97,7 @@ export function buildGraphData(
     for (const rawEp of evidence.potentially_affected_endpoints) {
       let epId: string;
       let epLabel: string;
+      let handler: string | undefined;
 
       if (typeof rawEp === 'string') {
         epId = rawEp;
@@ -94,7 +106,9 @@ export function buildGraphData(
         const epObj = rawEp as Record<string, unknown>;
         const method = epObj.method ? String(epObj.method) : 'ROUTE';
         const path = epObj.path ? String(epObj.path) : (epObj.id ? String(epObj.id) : 'endpoint');
-        epId = `${method} ${path}`;
+        epId = epObj.id ? String(epObj.id) : `${method} ${path}`;
+        handler = epObj.handler_symbol ? String(epObj.handler_symbol) : functionNames.get(String(epObj.handler_id));
+        if (!handler && epObj.handler_id && nodesMap.has(String(epObj.handler_id))) handler = String(epObj.handler_id);
         epLabel = `${method} ${path}`;
       } else {
         epId = String(rawEp);
@@ -105,13 +119,16 @@ export function buildGraphData(
         nodesMap.set(epId, { label: epLabel, isTarget: false, isEndpoint: true, layer: endpointLayer });
       }
 
-      // Connect root callers to endpoint
-      const callerCandidates = Array.from(nodesMap.keys()).filter((k) => k !== epId && !nodesMap.get(k)?.isEndpoint);
-      const rootCaller = callerCandidates.find((k) => nodesMap.get(k)?.layer === maxCallerLayer) || effectiveTarget;
-      const edgeId = `${epId}->${rootCaller}`;
-      if (!edgeSet.has(edgeId)) {
-        edgeSet.add(edgeId);
-        edges.push({ id: edgeId, source: epId, target: rootCaller });
+      // Draw only the declared handler relationship, never a layout-based guess.
+      if (handler) {
+        if (!nodesMap.has(handler)) {
+          nodesMap.set(handler, { label: handler.split('.').pop()!, isTarget: handler === effectiveTarget, isEndpoint: false, layer: 0 });
+        }
+        const edgeId = `${epId}->${handler}`;
+        if (!edgeSet.has(edgeId)) {
+          edgeSet.add(edgeId);
+          edges.push({ id: edgeId, source: epId, target: handler });
+        }
       }
     }
   }
